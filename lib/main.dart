@@ -6,31 +6,44 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ja_JP');
 
+  final prefs = await SharedPreferences.getInstance();
+  final colorValue = prefs.getInt('primaryColor') ?? Colors.indigo.value;
+  final primaryColor = Color(colorValue);
+
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
-    runApp(const DateCalculatorApp());
+    runApp(DateCalculatorApp(primaryColor: primaryColor));
   });
 }
 
-// アプリ全体で色を管理するためにStatefulWidgetに変更
 class DateCalculatorApp extends StatefulWidget {
-  const DateCalculatorApp({super.key});
+  final Color primaryColor;
+  const DateCalculatorApp({super.key, required this.primaryColor});
 
   @override
   State<DateCalculatorApp> createState() => _DateCalculatorAppState();
 }
 
 class _DateCalculatorAppState extends State<DateCalculatorApp> {
-  Color _primaryColor = Colors.indigo; // 色の初期値を設定（保存機能はない）
+  late Color _primaryColor;
 
-  void changeColor(Color color) {
+  @override
+  void initState() {
+    super.initState();
+    _primaryColor = widget.primaryColor;
+  }
+
+  void changeColor(Color color) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('primaryColor', color.value);
     setState(() {
-      _primaryColor = color; // アプリの色を更新
+      _primaryColor = color;
     });
   }
 
@@ -73,15 +86,14 @@ class _CalculatorPageState extends State<CalculatorPage> {
   String _resultDate = '';
 
   final Map<String, Color> _predefinedColors = {
-    'インディゴ': Colors.indigo,
-    'パープル': Colors.deepPurple,
-    'レッド': Colors.red.shade400,
-    'イエロー': Colors.amber.shade700,
-    'グリーン': Colors.green,
-    'オレンジ': Colors.orange,
-    'ブラウン': Colors.brown,
-    'モノクロ': Colors.grey,
-  };
+  'インディゴ': Colors.indigo,
+  'アッシュグレー': Color(0xFF78909C),
+  'ダスティミント': Color(0xFF80CBC4),
+  'スカイブルー': Color(0xFF64B5F6),
+  'ラベンダー': Color(0xFFB39DDB),
+  'アイボリー': Color(0xFFFFF9C4),
+  'ダスティローズ': Color(0xFFE57373), 
+};
 
   void _onButtonPressed(String text) {
     setState(() {
@@ -126,13 +138,15 @@ class _CalculatorPageState extends State<CalculatorPage> {
       if ("+-".contains(lastChar)) {
         finalExpression = _expression.substring(0, _expression.length - 1);
       }
+      // 【修正②】計算ロジックを元に戻し、エラーを解消
       Parser p = Parser();
       Expression exp = p.parse(finalExpression);
       ContextModel cm = ContextModel();
       double eval = exp.evaluate(EvaluationType.REAL, cm);
       final int days = eval.toInt();
       final DateTime futureDate = _selectedDate.add(Duration(days: days));
-      final String formattedDate = DateFormat('yyyy年M月d日(E)', 'ja_JP').format(futureDate);
+      final String formattedDate =
+          DateFormat('yyyy年M月d日(E)', 'ja_JP').format(futureDate);
       setState(() {
         _resultDate = '→ $formattedDate';
         _expression = eval.toInt().toString();
@@ -172,7 +186,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           MenuAnchor(
-            builder: (BuildContext context, MenuController controller, Widget? child) {
+            builder:
+                (BuildContext context, MenuController controller, Widget? child) {
               return IconButton(
                 onPressed: () {
                   if (controller.isOpen) {
@@ -193,7 +208,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
                       onPressed: () => widget.onColorChanged(entry.value),
                       child: Text(entry.key),
                     );
-                  }).toList(),
+                  }),
                   const Divider(),
                   MenuItemButton(
                     onPressed: () => _showColorPicker(context),
@@ -222,7 +237,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
                   icon: const Icon(Icons.calendar_today),
                   label: Text(
                     DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_selectedDate),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   onPressed: () => _selectDate(context),
                 ),
@@ -235,7 +251,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
               child: Text(
                 _expression,
                 textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
               ),
             ),
             SizedBox(
@@ -243,7 +260,10 @@ class _CalculatorPageState extends State<CalculatorPage> {
               child: Center(
                 child: Text(
                   _resultDate,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor),
                 ),
               ),
             ),
@@ -257,9 +277,27 @@ class _CalculatorPageState extends State<CalculatorPage> {
   Widget _buildKeypad() {
     return Column(
       children: [
-        Expanded(child: Row(children: [_buildKeypadButton('7'), _buildKeypadButton('8'), _buildKeypadButton('9'), _buildKeypadButton('+')])),
-        Expanded(child: Row(children: [_buildKeypadButton('4'), _buildKeypadButton('5'), _buildKeypadButton('6'), _buildKeypadButton('-')])),
-        Expanded(child: Row(children: [_buildKeypadButton('1'), _buildKeypadButton('2'), _buildKeypadButton('3'), _buildKeypadButton('←')])),
+        Expanded(
+            child: Row(children: [
+          _buildKeypadButton('7'),
+          _buildKeypadButton('8'),
+          _buildKeypadButton('9'),
+          _buildKeypadButton('+')
+        ])),
+        Expanded(
+            child: Row(children: [
+          _buildKeypadButton('4'),
+          _buildKeypadButton('5'),
+          _buildKeypadButton('6'),
+          _buildKeypadButton('-')
+        ])),
+        Expanded(
+            child: Row(children: [
+          _buildKeypadButton('1'),
+          _buildKeypadButton('2'),
+          _buildKeypadButton('3'),
+          _buildKeypadButton('←')
+        ])),
         Expanded(
           child: Row(
             children: [
@@ -275,13 +313,11 @@ class _CalculatorPageState extends State<CalculatorPage> {
 
   Widget _buildKeypadButton(String text, {int flex = 1}) {
     final bool isNumberButton = "0123456789".contains(text);
-    final Color? buttonColor = isNumberButton 
-      ? null 
-      : Theme.of(context).colorScheme.primaryContainer;
-    
-    final Color? textColor = isNumberButton
-      ? null
-      : Theme.of(context).colorScheme.onPrimaryContainer;
+    final Color? buttonColor =
+        isNumberButton ? null : Theme.of(context).colorScheme.primaryContainer;
+
+    final Color? textColor =
+        isNumberButton ? null : Theme.of(context).colorScheme.onPrimaryContainer;
 
     return Expanded(
       flex: flex,
@@ -290,10 +326,13 @@ class _CalculatorPageState extends State<CalculatorPage> {
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             minimumSize: const Size.fromHeight(double.infinity),
-            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            // 【修正①】タイプミスを修正
+            shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12))),
             backgroundColor: buttonColor,
             foregroundColor: textColor,
-            textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            textStyle:
+                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           onPressed: () => _onButtonPressed(text),
           child: Text(text),
@@ -333,6 +372,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
 
   void _showVersionInfo(BuildContext context) async {
     final packageInfo = await PackageInfo.fromPlatform();
+    if (!context.mounted) return;
     showAboutDialog(
       context: context,
       applicationName: '日付計算ツール',
