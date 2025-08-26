@@ -84,16 +84,30 @@ class _CalculatorPageState extends State<CalculatorPage> {
   DateTime _selectedDate = DateTime.now();
   String _expression = '0';
   String _resultDate = '';
+  List<String> _history = []; // ① 履歴を保持するリスト
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory(); // ② アプリ起動時に履歴を読み込む
+  }
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _history = prefs.getStringList('calcHistory') ?? [];
+    });
+  }
 
   final Map<String, Color> _predefinedColors = {
-  'インディゴ': Colors.indigo,
-  'アッシュグレー': Color(0xFF78909C),
-  'ダスティミント': Color(0xFF80CBC4),
-  'スカイブルー': Color(0xFF64B5F6),
-  'ラベンダー': Color(0xFFB39DDB),
-  'アイボリー': Color(0xFFFFF9C4),
-  'ダスティローズ': Color(0xFFE57373), 
-};
+    'インディゴ': Colors.indigo,
+    'アッシュグレー': Color(0xFF78909C),
+    'ダスティミント': Color(0xFF80CBC4),
+    'スカイブルー': Color(0xFF64B5F6),
+    'ラベンダー': Color(0xFFB39DDB),
+    'アイボリー': Color(0xFFFFF9C4),
+    'ダスティローズ': Color(0xFFE57373),
+  };
 
   void _onButtonPressed(String text) {
     setState(() {
@@ -111,7 +125,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
         return;
       }
       if (text == 'Ent') {
-        _calculateDate();
+        // ③ Entボタン押下時のみ履歴に保存する
+        _calculateDate(saveToHistory: true);
         return;
       }
       if (_expression == '0' && "0123456789".contains(text)) {
@@ -131,14 +146,15 @@ class _CalculatorPageState extends State<CalculatorPage> {
     });
   }
 
-  void _calculateDate() {
+  // ④ 履歴に保存するかどうかを引数で制御
+  void _calculateDate({bool saveToHistory = false}) async {
     try {
       String finalExpression = _expression;
       String lastChar = _expression.substring(_expression.length - 1);
       if ("+-".contains(lastChar)) {
         finalExpression = _expression.substring(0, _expression.length - 1);
       }
-      // 【修正②】計算ロジックを元に戻し、エラーを解消
+
       Parser p = Parser();
       Expression exp = p.parse(finalExpression);
       ContextModel cm = ContextModel();
@@ -147,9 +163,25 @@ class _CalculatorPageState extends State<CalculatorPage> {
       final DateTime futureDate = _selectedDate.add(Duration(days: days));
       final String formattedDate =
           DateFormat('yyyy年M月d日(E)', 'ja_JP').format(futureDate);
+      
+      if (saveToHistory) {
+        final historyEntry =
+            "${DateFormat('yyyy/MM/dd').format(_selectedDate)} ${finalExpression.replaceAllMapped(RegExp(r'(\d+)'), (m) => m.group(0)!).replaceAll('-', ' - ').replaceAll('+', ' + ')} = ${DateFormat('yyyy/MM/dd').format(futureDate)}";
+        
+        setState(() {
+          _history.insert(0, historyEntry); // 新しい履歴をリストの先頭に追加
+          
+          // 履歴が30件を超えたら古いものを削除
+          while (_history.length > 30) {
+            _history.removeLast();
+          }
+        });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('calcHistory', _history); // 履歴を保存
+      }
+
       setState(() {
         _resultDate = '→ $formattedDate';
-        _expression = eval.toInt().toString();
       });
     } catch (e) {
       setState(() {
@@ -172,10 +204,22 @@ class _CalculatorPageState extends State<CalculatorPage> {
       if (_expression.isNotEmpty && _expression != '0') {
         final lastChar = _expression.substring(_expression.length - 1);
         if (!"+-".contains(lastChar)) {
-          _calculateDate();
+          _calculateDate(saveToHistory: false); // ⑤ 開始日変更時は履歴に保存しない
         }
       }
     }
+  }
+
+  // ⑥ 履歴ページへ移動する処理
+  void _navigateToHistory() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HistoryPage(),
+      ),
+    );
+    // 履歴ページから戻ってきたら、履歴を再読み込みする（クリアされた場合を反映するため）
+    _loadHistory();
   }
 
   @override
@@ -201,6 +245,12 @@ class _CalculatorPageState extends State<CalculatorPage> {
               );
             },
             menuChildren: [
+              // ⑦ メニューに「計算履歴」を追加
+              MenuItemButton(
+                onPressed: _navigateToHistory,
+                child: const Text('計算履歴'),
+              ),
+              const Divider(),
               SubmenuButton(
                 menuChildren: [
                   ..._predefinedColors.entries.map((entry) {
@@ -275,6 +325,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   Widget _buildKeypad() {
+    // ... （このウィジェットのコードは変更ありません）
     return Column(
       children: [
         Expanded(
@@ -312,6 +363,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   Widget _buildKeypadButton(String text, {int flex = 1}) {
+    // ... （このウィジェットのコードは変更ありません）
     final bool isNumberButton = "0123456789".contains(text);
     final Color? buttonColor =
         isNumberButton ? null : Theme.of(context).colorScheme.primaryContainer;
@@ -326,7 +378,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             minimumSize: const Size.fromHeight(double.infinity),
-            // 【修正①】タイプミスを修正
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12))),
             backgroundColor: buttonColor,
@@ -342,6 +393,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   void _showColorPicker(BuildContext context) {
+    // ... （このメソッドのコードは変更ありません）
     Color pickerColor = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,
@@ -371,6 +423,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   void _showVersionInfo(BuildContext context) async {
+    // ... （このメソッドのコードは変更ありません）
     final packageInfo = await PackageInfo.fromPlatform();
     if (!context.mounted) return;
     showAboutDialog(
@@ -378,6 +431,91 @@ class _CalculatorPageState extends State<CalculatorPage> {
       applicationName: '日付計算ツール',
       applicationVersion: packageInfo.version,
       applicationLegalese: '© 2025 t-BocSoft',
+    );
+  }
+}
+
+// ⑧ 履歴表示用の新しいページウィジェット
+class HistoryPage extends StatefulWidget {
+  @override
+  _HistoryPageState createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  List<String> _history = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _history = prefs.getStringList('calcHistory') ?? [];
+    });
+  }
+
+  Future<void> _clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('calcHistory');
+    _loadHistory();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('計算履歴'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete_outline),
+            tooltip: '履歴をクリア',
+            onPressed: _history.isEmpty ? null : () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('履歴をクリア'),
+                  content: Text('すべての計算履歴を削除しますか？'),
+                  actions: [
+                    TextButton(
+                      child: Text('キャンセル'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    TextButton(
+                      child: Text('削除'),
+                      onPressed: () {
+                        _clearHistory();
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: _history.isEmpty
+          ? Center(
+              child: Text(
+                '計算履歴はありません。',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            )
+          : ListView.separated(
+              itemCount: _history.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(
+                    _history[index],
+                    style: TextStyle(fontSize: 16),
+                  ),
+                );
+              },
+              separatorBuilder: (context, index) => const Divider(),
+            ),
     );
   }
 }
