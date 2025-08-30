@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -78,150 +79,225 @@ class CalculatorPage extends StatefulWidget {
   State<CalculatorPage> createState() => _CalculatorPageState();
 }
 
-enum Menu { color, info }
+enum ActiveField { standardDate, daysExpression, finalDate }
+
+class CalculationState {
+  DateTime standardDate;
+  String daysExpression;
+  DateTime? finalDate;
+  ActiveField activeField;
+
+  CalculationState({
+    required this.standardDate,
+    required this.daysExpression,
+    this.finalDate,
+    this.activeField = ActiveField.daysExpression,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'standardDate': standardDate.toIso8601String(),
+        'daysExpression': daysExpression,
+        'finalDate': finalDate?.toIso8601String(),
+      };
+
+  factory CalculationState.fromJson(Map<String, dynamic> json) =>
+      CalculationState(
+        standardDate: DateTime.parse(json['standardDate']),
+        daysExpression: json['daysExpression'],
+        finalDate: json['finalDate'] != null
+            ? DateTime.parse(json['finalDate'])
+            : null,
+      );
+}
 
 class _CalculatorPageState extends State<CalculatorPage> {
-  DateTime _selectedDate = DateTime.now();
-  String _expression = '0';
-  String _resultDate = '';
-  List<String> _history = []; // ① 履歴を保持するリスト
+  late CalculationState _calculationState;
+  List<CalculationState> _history = [];
 
   @override
   void initState() {
     super.initState();
-    _loadHistory(); // ② アプリ起動時に履歴を読み込む
+    _calculationState = CalculationState(
+      standardDate: DateTime.now(),
+      daysExpression: '0',
+    );
+    _loadHistory();
+    _calculateDate(source: ActiveField.daysExpression);
   }
 
   Future<void> _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    final historyJson = prefs.getStringList('calcHistory') ?? [];
+    if (!mounted) return;
     setState(() {
-      _history = prefs.getStringList('calcHistory') ?? [];
+      try {
+        _history = historyJson
+            .map((json) => CalculationState.fromJson(jsonDecode(json)))
+            .toList();
+      } catch (e) {
+        prefs.remove('calcHistory');
+        _history = [];
+      }
     });
+  }
+  
+  Future<void> _saveHistory() async {
+    if (_calculationState.finalDate == null) return;
+  
+    final prefs = await SharedPreferences.getInstance();
+    _history.insert(0, _calculationState);
+    if (_history.length > 30) {
+      _history.removeLast();
+    }
+    List<String> historyJson =
+        _history.map((state) => jsonEncode(state.toJson())).toList();
+    await prefs.setStringList('calcHistory', historyJson);
+    if (!mounted) return;
+    setState(() {});
   }
 
   final Map<String, Color> _predefinedColors = {
     'インディゴ': Colors.indigo,
-    'アッシュグレー': Color(0xFF78909C),
-    'ダスティミント': Color(0xFF80CBC4),
-    'スカイブルー': Color(0xFF64B5F6),
-    'ラベンダー': Color(0xFFB39DDB),
-    'アイボリー': Color(0xFFFFF9C4),
-    'ダスティローズ': Color(0xFFE57373),
+    'アッシュグレー': const Color(0xFF78909C),
+    'ダスティミント': const Color(0xFF80CBC4),
+    'スカイブルー': const Color(0xFF64B5F6),
+    'ラベンダー': const Color(0xFFB39DDB),
+    'アイボリー': const Color(0xFFFFF9C4),
+    'ダスティローズ': const Color(0xFFE57373),
   };
 
   void _onButtonPressed(String text) {
+    if (_calculationState.activeField != ActiveField.daysExpression) return;
+
     setState(() {
       if (text == 'C') {
-        _expression = '0';
-        _resultDate = '';
-        return;
-      }
-      if (text == '←') {
-        if (_expression.length > 1) {
-          _expression = _expression.substring(0, _expression.length - 1);
+        _calculationState.daysExpression = '0';
+      } else if (text == '←') {
+        if (_calculationState.daysExpression.length > 1) {
+          _calculationState.daysExpression = _calculationState.daysExpression
+              .substring(0, _calculationState.daysExpression.length - 1);
         } else {
-          _expression = '0';
+          _calculationState.daysExpression = '0';
         }
+      } else if (text == 'Ent') {
+        _calculateDate(saveToHistory: true, source: ActiveField.daysExpression);
         return;
-      }
-      if (text == 'Ent') {
-        // ③ Entボタン押下時のみ履歴に保存する
-        _calculateDate(saveToHistory: true);
-        return;
-      }
-      if (_expression == '0' && "0123456789".contains(text)) {
-        _expression = text;
-        return;
-      }
-      if ("+-".contains(text)) {
-        String lastChar = _expression.substring(_expression.length - 1);
+      } else if ("+-".contains(text)) {
+        String lastChar = _calculationState.daysExpression.substring(_calculationState.daysExpression.length - 1);
         if ("+-".contains(lastChar)) {
-          _expression = _expression.substring(0, _expression.length - 1) + text;
+          _calculationState.daysExpression = _calculationState.daysExpression.substring(0, _calculationState.daysExpression.length - 1) + text;
         } else {
-          _expression += text;
+          _calculationState.daysExpression += text;
         }
-        return;
+      } else {
+          if (_calculationState.daysExpression == '0') {
+            _calculationState.daysExpression = text;
+          } else {
+            _calculationState.daysExpression += text;
+          }
       }
-      _expression += text;
+      _calculateDate(source: ActiveField.daysExpression);
     });
   }
 
-  // ④ 履歴に保存するかどうかを引数で制御
-  void _calculateDate({bool saveToHistory = false}) async {
-    try {
-      String finalExpression = _expression;
-      String lastChar = _expression.substring(_expression.length - 1);
-      if ("+-".contains(lastChar)) {
-        finalExpression = _expression.substring(0, _expression.length - 1);
+  void _onShortcutButtonPressed(int days) {
+    setState(() {
+      if (_calculationState.activeField == ActiveField.finalDate && _calculationState.finalDate != null) {
+        _calculationState.finalDate = _calculationState.finalDate!.add(Duration(days: days));
+        _calculateDate(source: ActiveField.finalDate);
+      } else {
+        if (_calculationState.daysExpression == '0') {
+          _calculationState.daysExpression = days.toString();
+        } else {
+          _calculationState.daysExpression += "+$days";
+        }
+        _calculationState.activeField = ActiveField.daysExpression;
+        _calculateDate(source: ActiveField.daysExpression);
       }
+    });
+  }
 
-      Parser p = Parser();
-      Expression exp = p.parse(finalExpression);
-      ContextModel cm = ContextModel();
-      double eval = exp.evaluate(EvaluationType.REAL, cm);
-      final int days = eval.toInt();
-      final DateTime futureDate = _selectedDate.add(Duration(days: days));
-      final String formattedDate =
-          DateFormat('yyyy年M月d日(E)', 'ja_JP').format(futureDate);
-      
-      if (saveToHistory) {
-        final historyEntry =
-            "${DateFormat('yyyy/MM/dd').format(_selectedDate)} ${finalExpression.replaceAllMapped(RegExp(r'(\d+)'), (m) => m.group(0)!).replaceAll('-', ' - ').replaceAll('+', ' + ')} = ${DateFormat('yyyy/MM/dd').format(futureDate)}";
-        
+  void _calculateDate({bool saveToHistory = false, required ActiveField source}) {
+    if (source == ActiveField.standardDate || source == ActiveField.daysExpression) {
+      try {
+        String finalExpression = _calculationState.daysExpression;
+        if (finalExpression.endsWith('+') || finalExpression.endsWith('-')) {
+          finalExpression = finalExpression.substring(0, finalExpression.length - 1);
+        }
+        if(finalExpression.isEmpty) {
+          setState(() { _calculationState.finalDate = null; });
+          return;
+        }
+        Parser p = Parser();
+        Expression exp = p.parse(finalExpression);
+        final int days = exp.evaluate(EvaluationType.REAL, ContextModel()).toInt();
         setState(() {
-          _history.insert(0, historyEntry); // 新しい履歴をリストの先頭に追加
-          
-          // 履歴が30件を超えたら古いものを削除
-          while (_history.length > 30) {
-            _history.removeLast();
-          }
+          _calculationState.finalDate = _calculationState.standardDate.add(Duration(days: days));
         });
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setStringList('calcHistory', _history); // 履歴を保存
+      } catch (e) {
+        setState(() { _calculationState.finalDate = null; });
       }
+    } else if (source == ActiveField.finalDate) {
+      if (_calculationState.finalDate != null) {
+        final int daysDifference = _calculationState.finalDate!.difference(_calculationState.standardDate).inDays;
+        setState(() {
+          _calculationState.daysExpression = daysDifference.toString();
+        });
+      }
+    }
 
-      setState(() {
-        _resultDate = '→ $formattedDate';
-      });
-    } catch (e) {
-      setState(() {
-        _resultDate = '式が正しくありません';
-      });
+    if (saveToHistory) {
+      _saveHistory();
     }
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> _selectDate(BuildContext context, ActiveField field) async {
+    final DateTime initialDate = (field == ActiveField.standardDate)
+        ? _calculationState.standardDate
+        : (_calculationState.finalDate ?? DateTime.now());
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: initialDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-      if (_expression.isNotEmpty && _expression != '0') {
-        final lastChar = _expression.substring(_expression.length - 1);
-        if (!"+-".contains(lastChar)) {
-          _calculateDate(saveToHistory: false); // ⑤ 開始日変更時は履歴に保存しない
+    
+    if (picked == null) return;
+
+    setState(() {
+      if (field == ActiveField.standardDate) {
+        _calculationState.standardDate = picked;
+        if (_calculationState.activeField == ActiveField.finalDate) {
+          _calculateDate(source: ActiveField.finalDate);
+        } else {
+          _calculateDate(source: ActiveField.standardDate);
         }
+      } else if (field == ActiveField.finalDate) {
+        _calculationState.activeField = field;
+        _calculationState.finalDate = picked;
+        _calculateDate(source: ActiveField.finalDate);
       }
-    }
+    });
   }
 
-  // ⑥ 履歴ページへ移動する処理
   void _navigateToHistory() async {
-    await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HistoryPage(),
+        builder: (context) => HistoryPage(history: _history),
       ),
     );
-    // 履歴ページから戻ってきたら、履歴を再読み込みする（クリアされた場合を反映するため）
-    _loadHistory();
-  }
 
+    if (result is CalculationState) {
+      setState(() {
+        _calculationState = result;
+      });
+    } else {
+      _loadHistory();
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -245,7 +321,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
               );
             },
             menuChildren: [
-              // ⑦ メニューに「計算履歴」を追加
               MenuItemButton(
                 onPressed: _navigateToHistory,
                 child: const Text('計算履歴'),
@@ -279,43 +354,34 @@ class _CalculatorPageState extends State<CalculatorPage> {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
         child: Column(
           children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('開始日:', style: TextStyle(fontSize: 16)),
-                TextButton.icon(
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_selectedDate),
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () => _selectDate(context),
-                ),
-              ],
+            _buildDisplayField(
+              label: '基準日',
+              value: DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_calculationState.standardDate),
+              isBase: true,
+              isFocused: _calculationState.activeField == ActiveField.standardDate,
+              onTap: () => _selectDate(context, ActiveField.standardDate),
             ),
-            const Divider(),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              child: Text(
-                _expression,
-                textAlign: TextAlign.right,
-                style:
-                    const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
-              ),
+            const SizedBox(height: 8),
+            _buildDisplayField(
+              label: '日数',
+              value: _calculationState.daysExpression,
+              isBase: false,
+              isFocused: _calculationState.activeField == ActiveField.daysExpression,
+              onTap: () {
+                setState(() {
+                  _calculationState.activeField = ActiveField.daysExpression;
+                });
+              },
             ),
-            SizedBox(
-              height: 50,
-              child: Center(
-                child: Text(
-                  _resultDate,
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor),
-                ),
-              ),
+            const SizedBox(height: 8),
+            _buildDisplayField(
+              label: '最終日',
+              value: _calculationState.finalDate == null
+                  ? '----年--月--日(-)'
+                  : DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_calculationState.finalDate!),
+              isBase: false,
+              isFocused: _calculationState.activeField == ActiveField.finalDate,
+              onTap: () => _selectDate(context, ActiveField.finalDate),
             ),
             Expanded(child: _buildKeypad()),
           ],
@@ -324,11 +390,96 @@ class _CalculatorPageState extends State<CalculatorPage> {
     );
   }
 
+  Widget _buildDisplayField({
+    required String label,
+    required String value,
+    required bool isBase,
+    required bool isFocused,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    final bool isHighlighted = isBase || isFocused;
+    final Color backgroundColor = isHighlighted
+        ? colorScheme.primaryContainer
+        : theme.scaffoldBackgroundColor;
+    final Color borderColor = isFocused 
+        ? colorScheme.primary 
+        : Colors.grey.shade300;
+
+    final bool isDaysField = label == '日数';
+    final double fontSize = 32;
+    final TextAlign textAlign = isDaysField ? TextAlign.right : TextAlign.left;
+
+    return SizedBox(
+      height: 80,
+      child: Material(
+        color: backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: borderColor, width: isFocused ? 2.0 : 1.0),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                Expanded(
+                  child: Align(
+                    alignment: isDaysField ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: textAlign,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
   Widget _buildKeypad() {
-    // ... （このウィジェットのコードは変更ありません）
     return Column(
       children: [
+        const SizedBox(height: 16),
         Expanded(
+          flex: 3,
+          child: Row(children: [
+            _buildShortcutButton('+7', 7),
+            _buildShortcutButton('+14', 14),
+            _buildShortcutButton('+28', 28),
+          ]),
+        ),
+        Expanded(
+          flex: 3,
+          child: Row(children: [
+            _buildShortcutButton('+56', 56),
+            _buildShortcutButton('+84', 84),
+            _buildShortcutButton('+91', 91),
+          ]),
+        ),
+        // 変更点: ショートカットとキーパッドの間の余白を増やしました
+        const SizedBox(height: 24), 
+        Expanded(
+          flex: 4,
             child: Row(children: [
           _buildKeypadButton('7'),
           _buildKeypadButton('8'),
@@ -336,6 +487,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
           _buildKeypadButton('+')
         ])),
         Expanded(
+          flex: 4,
             child: Row(children: [
           _buildKeypadButton('4'),
           _buildKeypadButton('5'),
@@ -343,6 +495,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
           _buildKeypadButton('-')
         ])),
         Expanded(
+          flex: 4,
             child: Row(children: [
           _buildKeypadButton('1'),
           _buildKeypadButton('2'),
@@ -350,6 +503,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
           _buildKeypadButton('←')
         ])),
         Expanded(
+          flex: 4,
           child: Row(
             children: [
               _buildKeypadButton('C'),
@@ -363,13 +517,12 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   Widget _buildKeypadButton(String text, {int flex = 1}) {
-    // ... （このウィジェットのコードは変更ありません）
     final bool isNumberButton = "0123456789".contains(text);
     final Color? buttonColor =
-        isNumberButton ? null : Theme.of(context).colorScheme.primaryContainer;
+        isNumberButton ? null : Theme.of(context).colorScheme.secondaryContainer;
 
     final Color? textColor =
-        isNumberButton ? null : Theme.of(context).colorScheme.onPrimaryContainer;
+        isNumberButton ? null : Theme.of(context).colorScheme.onSecondaryContainer;
 
     return Expanded(
       flex: flex,
@@ -392,8 +545,34 @@ class _CalculatorPageState extends State<CalculatorPage> {
     );
   }
 
+  Widget _buildShortcutButton(String text, int days) {
+    // 変更点: テーマカラーより濃い色を生成
+    final Color baseColor = Theme.of(context).colorScheme.primary; // primaryColorを基準に
+    final HSLColor hslColor = HSLColor.fromColor(baseColor);
+    final HSLColor darkerHslColor = hslColor.withLightness((hslColor.lightness - 0.15).clamp(0.0, 1.0)); // 輝度を少し下げる
+    final Color buttonColor = darkerHslColor.toColor();
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(double.infinity),
+            shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12))),
+            backgroundColor: buttonColor,
+            foregroundColor: Colors.white, // 濃い色に合わせてテキストは白に
+            textStyle:
+                const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          onPressed: () => _onShortcutButtonPressed(days),
+          child: Text(text),
+        ),
+      ),
+    );
+  }
+
   void _showColorPicker(BuildContext context) {
-    // ... （このメソッドのコードは変更ありません）
     Color pickerColor = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,
@@ -423,7 +602,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 
   void _showVersionInfo(BuildContext context) async {
-    // ... （このメソッドのコードは変更ありません）
     final packageInfo = await PackageInfo.fromPlatform();
     if (!context.mounted) return;
     showAboutDialog(
@@ -435,65 +613,64 @@ class _CalculatorPageState extends State<CalculatorPage> {
   }
 }
 
-// ⑧ 履歴表示用の新しいページウィジェット
 class HistoryPage extends StatefulWidget {
+  final List<CalculationState> history;
+  const HistoryPage({super.key, required this.history});
+
   @override
-  _HistoryPageState createState() => _HistoryPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  List<String> _history = [];
+  late List<CalculationState> _history;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-  }
-
-  Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _history = prefs.getStringList('calcHistory') ?? [];
-    });
+    _history = widget.history;
   }
 
   Future<void> _clearHistory() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('calcHistory');
-    _loadHistory();
+    setState(() {
+      _history.clear();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('計算履歴'),
+        title: const Text('計算履歴'),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_outline),
             tooltip: '履歴をクリア',
-            onPressed: _history.isEmpty ? null : () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('履歴をクリア'),
-                  content: Text('すべての計算履歴を削除しますか？'),
-                  actions: [
-                    TextButton(
-                      child: Text('キャンセル'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: Text('削除'),
-                      onPressed: () {
-                        _clearHistory();
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
+            onPressed: _history.isEmpty
+                ? null
+                : () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('履歴をクリア'),
+                        content: const Text('すべての計算履歴を削除しますか？'),
+                        actions: [
+                          TextButton(
+                            child: const Text('キャンセル'),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          TextButton(
+                            child: const Text('削除'),
+                            onPressed: () {
+                              _clearHistory();
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
           ),
         ],
       ),
@@ -507,11 +684,31 @@ class _HistoryPageState extends State<HistoryPage> {
           : ListView.separated(
               itemCount: _history.length,
               itemBuilder: (context, index) {
+                final state = _history[index];
+                final standardDateStr = DateFormat('yyyy/MM/dd').format(state.standardDate);
+                final finalDateStr = state.finalDate != null
+                    ? DateFormat('yyyy/MM/dd').format(state.finalDate!)
+                    : '';
+                final expressionStr = state.daysExpression.replaceAllMapped(
+                  RegExp(r'([+\-])'), (match) => ' ${match.group(1)} '
+                );
+
                 return ListTile(
                   title: Text(
-                    _history[index],
-                    style: TextStyle(fontSize: 16),
+                    '$standardDateStr $expressionStr',
+                    style: const TextStyle(fontSize: 16),
                   ),
+                  subtitle: Text(
+                    '= $finalDateStr',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop(state);
+                  },
                 );
               },
               separatorBuilder: (context, index) => const Divider(),
