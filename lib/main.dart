@@ -9,6 +9,24 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+String toJapaneseEra(DateTime date) {
+  final int year = date.year;
+  final String dayOfWeek = DateFormat.E('ja_JP').format(date);
+
+  if (year >= 2019) {
+    final int reiwaYear = year - 2018;
+    return '令和${reiwaYear == 1 ? '元' : reiwaYear}年${date.month}月${date.day}日($dayOfWeek)';
+  } else if (year >= 1989) {
+    final int heiseiYear = year - 1988;
+    return '平成${heiseiYear == 1 ? '元' : heiseiYear}年${date.month}月${date.day}日($dayOfWeek)';
+  } else if (year >= 1926) {
+    final int showaYear = year - 1925;
+    return '昭和${showaYear == 1 ? '元' : showaYear}年${date.month}月${date.day}日($dayOfWeek)';
+  }
+  return DateFormat('yyyy年M月d日(E)', 'ja_JP').format(date);
+}
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ja_JP');
@@ -16,16 +34,19 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final colorValue = prefs.getInt('primaryColor') ?? Colors.indigo.value;
   final primaryColor = Color(colorValue);
+  final isJapaneseCalendar = prefs.getBool('isJapaneseCalendar') ?? false;
+
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) {
-    runApp(DateCalculatorApp(primaryColor: primaryColor));
+    runApp(DateCalculatorApp(primaryColor: primaryColor, isJapaneseCalendar: isJapaneseCalendar));
   });
 }
 
 class DateCalculatorApp extends StatefulWidget {
   final Color primaryColor;
-  const DateCalculatorApp({super.key, required this.primaryColor});
+  final bool isJapaneseCalendar;
+  const DateCalculatorApp({super.key, required this.primaryColor, required this.isJapaneseCalendar});
 
   @override
   State<DateCalculatorApp> createState() => _DateCalculatorAppState();
@@ -33,11 +54,13 @@ class DateCalculatorApp extends StatefulWidget {
 
 class _DateCalculatorAppState extends State<DateCalculatorApp> {
   late Color _primaryColor;
+  late bool _isJapaneseCalendar;
 
   @override
   void initState() {
     super.initState();
     _primaryColor = widget.primaryColor;
+    _isJapaneseCalendar = widget.isJapaneseCalendar;
   }
 
   void changeColor(Color color) async {
@@ -46,6 +69,14 @@ class _DateCalculatorAppState extends State<DateCalculatorApp> {
     setState(() {
       _primaryColor = color;
     });
+  }
+  
+  void toggleCalendarMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isJapaneseCalendar = !_isJapaneseCalendar;
+    });
+    await prefs.setBool('isJapaneseCalendar', _isJapaneseCalendar);
   }
 
   @override
@@ -66,6 +97,8 @@ class _DateCalculatorAppState extends State<DateCalculatorApp> {
       ),
       home: CalculatorPage(
         onColorChanged: changeColor,
+        isJapaneseCalendar: _isJapaneseCalendar,
+        onCalendarModeChanged: toggleCalendarMode,
       ),
     );
   }
@@ -73,7 +106,15 @@ class _DateCalculatorAppState extends State<DateCalculatorApp> {
 
 class CalculatorPage extends StatefulWidget {
   final Function(Color) onColorChanged;
-  const CalculatorPage({super.key, required this.onColorChanged});
+  final bool isJapaneseCalendar;
+  final VoidCallback onCalendarModeChanged;
+
+  const CalculatorPage({
+    super.key, 
+    required this.onColorChanged, 
+    required this.isJapaneseCalendar,
+    required this.onCalendarModeChanged
+  });
 
   @override
   State<CalculatorPage> createState() => _CalculatorPageState();
@@ -259,7 +300,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(2000),
+      firstDate: DateTime(1926),
       lastDate: DateTime(2101),
     );
     
@@ -280,12 +321,23 @@ class _CalculatorPageState extends State<CalculatorPage> {
       }
     });
   }
+  
+  void _resetToToday() {
+    setState(() {
+      _calculationState.standardDate = DateTime.now();
+       if (_calculationState.activeField == ActiveField.finalDate) {
+        _calculateDate(source: ActiveField.finalDate);
+      } else {
+        _calculateDate(source: ActiveField.standardDate);
+      }
+    });
+  }
 
   void _navigateToHistory() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HistoryPage(history: _history),
+        builder: (context) => HistoryPage(history: _history, isJapaneseCalendar: widget.isJapaneseCalendar),
       ),
     );
 
@@ -298,6 +350,15 @@ class _CalculatorPageState extends State<CalculatorPage> {
     }
   }
   
+  String _formatDate(DateTime? date) {
+    if (date == null) return '----年--月--日(-)';
+    if (widget.isJapaneseCalendar) {
+      return toJapaneseEra(date);
+    } else {
+      return DateFormat('yyyy年M月d日(E)', 'ja_JP').format(date);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -354,9 +415,37 @@ class _CalculatorPageState extends State<CalculatorPage> {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
         child: Column(
           children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.today, size: 18),
+                      label: const Text('今日'),
+                      onPressed: _resetToToday,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.switch_left, size: 18),
+                      label: Text(widget.isJapaneseCalendar ? '西暦へ' : '和暦へ'),
+                      onPressed: widget.onCalendarModeChanged,
+                       style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             _buildDisplayField(
               label: '基準日',
-              value: DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_calculationState.standardDate),
+              value: _formatDate(_calculationState.standardDate),
               isBase: true,
               isFocused: _calculationState.activeField == ActiveField.standardDate,
               onTap: () => _selectDate(context, ActiveField.standardDate),
@@ -376,13 +465,12 @@ class _CalculatorPageState extends State<CalculatorPage> {
             const SizedBox(height: 8),
             _buildDisplayField(
               label: '最終日',
-              value: _calculationState.finalDate == null
-                  ? '----年--月--日(-)'
-                  : DateFormat('yyyy年M月d日(E)', 'ja_JP').format(_calculationState.finalDate!),
+              value: _formatDate(_calculationState.finalDate),
               isBase: false,
               isFocused: _calculationState.activeField == ActiveField.finalDate,
               onTap: () => _selectDate(context, ActiveField.finalDate),
             ),
+            const SizedBox(height: 8),
             Expanded(child: _buildKeypad()),
           ],
         ),
@@ -436,15 +524,18 @@ class _CalculatorPageState extends State<CalculatorPage> {
                 Expanded(
                   child: Align(
                     alignment: isDaysField ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.bold,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: textAlign,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                      textAlign: textAlign,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
                   ),
                 ),
@@ -459,25 +550,23 @@ class _CalculatorPageState extends State<CalculatorPage> {
   Widget _buildKeypad() {
     return Column(
       children: [
-        const SizedBox(height: 16),
         Expanded(
-          flex: 3,
+          flex: 2,
           child: Row(children: [
-            _buildShortcutButton('+7', 7),
-            _buildShortcutButton('+14', 14),
-            _buildShortcutButton('+28', 28),
+            _buildShortcutButton(7),
+            _buildShortcutButton(14),
+            _buildShortcutButton(28),
           ]),
         ),
         Expanded(
-          flex: 3,
+          flex: 2,
           child: Row(children: [
-            _buildShortcutButton('+56', 56),
-            _buildShortcutButton('+84', 84),
-            _buildShortcutButton('+91', 91),
+            _buildShortcutButton(56),
+            _buildShortcutButton(84),
+            _buildShortcutButton(91),
           ]),
         ),
-        // 変更点: ショートカットとキーパッドの間の余白を増やしました
-        const SizedBox(height: 24), 
+        const SizedBox(height: 8), 
         Expanded(
           flex: 4,
             child: Row(children: [
@@ -545,12 +634,16 @@ class _CalculatorPageState extends State<CalculatorPage> {
     );
   }
 
-  Widget _buildShortcutButton(String text, int days) {
-    // 変更点: テーマカラーより濃い色を生成
-    final Color baseColor = Theme.of(context).colorScheme.primary; // primaryColorを基準に
+  // 変更点: 1行表示にし、FittedBoxでテキストサイズを自動調整
+  Widget _buildShortcutButton(int days) {
+    final Color baseColor = Theme.of(context).colorScheme.primary; 
     final HSLColor hslColor = HSLColor.fromColor(baseColor);
-    final HSLColor darkerHslColor = hslColor.withLightness((hslColor.lightness - 0.15).clamp(0.0, 1.0)); // 輝度を少し下げる
+    final HSLColor darkerHslColor = hslColor.withLightness((hslColor.lightness - 0.15).clamp(0.0, 1.0));
     final Color buttonColor = darkerHslColor.toColor();
+
+    final int weeks = days ~/ 7;
+    // 1行のテキストに変更
+    final String buttonText = '+$days (${weeks}週)';
 
     return Expanded(
       child: Padding(
@@ -561,12 +654,19 @@ class _CalculatorPageState extends State<CalculatorPage> {
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12))),
             backgroundColor: buttonColor,
-            foregroundColor: Colors.white, // 濃い色に合わせてテキストは白に
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 4.0), // 左右のパディングを少し追加
             textStyle:
                 const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           onPressed: () => _onShortcutButtonPressed(days),
-          child: Text(text),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              buttonText,
+              maxLines: 1, // 念のため1行に制限
+            ),
+          ),
         ),
       ),
     );
@@ -615,7 +715,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
 
 class HistoryPage extends StatefulWidget {
   final List<CalculationState> history;
-  const HistoryPage({super.key, required this.history});
+  final bool isJapaneseCalendar;
+  const HistoryPage({super.key, required this.history, required this.isJapaneseCalendar});
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -685,10 +786,17 @@ class _HistoryPageState extends State<HistoryPage> {
               itemCount: _history.length,
               itemBuilder: (context, index) {
                 final state = _history[index];
-                final standardDateStr = DateFormat('yyyy/MM/dd').format(state.standardDate);
-                final finalDateStr = state.finalDate != null
-                    ? DateFormat('yyyy/MM/dd').format(state.finalDate!)
-                    : '';
+                
+                final String standardDateStr;
+                final String finalDateStr;
+                if (widget.isJapaneseCalendar) {
+                  standardDateStr = toJapaneseEra(state.standardDate).split('(').first;
+                  finalDateStr = state.finalDate != null ? toJapaneseEra(state.finalDate!).split('(').first : '';
+                } else {
+                  standardDateStr = DateFormat('yyyy/MM/dd').format(state.standardDate);
+                  finalDateStr = state.finalDate != null ? DateFormat('yyyy/MM/dd').format(state.finalDate!) : '';
+                }
+
                 final expressionStr = state.daysExpression.replaceAllMapped(
                   RegExp(r'([+\-])'), (match) => ' ${match.group(1)} '
                 );
