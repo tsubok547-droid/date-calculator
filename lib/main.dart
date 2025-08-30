@@ -154,6 +154,10 @@ class CalculationState {
 class _CalculatorPageState extends State<CalculatorPage> {
   late CalculationState _calculationState;
   List<CalculationState> _history = [];
+  bool _isFinalDateHighlighted = false;
+  // 変更点: 日数フィールド用のアニメーションフラグを再度追加
+  bool _isDaysExpressionHighlighted = false;
+
 
   @override
   void initState() {
@@ -207,7 +211,30 @@ class _CalculatorPageState extends State<CalculatorPage> {
     'ダスティローズ': const Color(0xFFE57373),
   };
 
+  // 変更点: メソッドのロジックを全面的に書き換え
   void _onButtonPressed(String text) {
+    // Entキーはどのフォーカスでも動作する
+    if (text == 'Ent') {
+      // フォーカスに応じてハイライト対象を変更
+      if (_calculationState.activeField == ActiveField.daysExpression) {
+        if (_calculationState.finalDate != null) {
+          setState(() => _isFinalDateHighlighted = true);
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) setState(() => _isFinalDateHighlighted = false);
+          });
+        }
+      } else if (_calculationState.activeField == ActiveField.finalDate) {
+        setState(() => _isDaysExpressionHighlighted = true);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) setState(() => _isDaysExpressionHighlighted = false);
+        });
+      }
+      
+      _calculateDate(saveToHistory: true, source: _calculationState.activeField);
+      return;
+    }
+
+    // Ent以外のキーは日数フィールドのフォーカス時のみ動作
     if (_calculationState.activeField != ActiveField.daysExpression) return;
 
     setState(() {
@@ -220,9 +247,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
         } else {
           _calculationState.daysExpression = '0';
         }
-      } else if (text == 'Ent') {
-        _calculateDate(saveToHistory: true, source: ActiveField.daysExpression);
-        return;
       } else if ("+-".contains(text)) {
         String lastChar = _calculationState.daysExpression.substring(_calculationState.daysExpression.length - 1);
         if ("+-".contains(lastChar)) {
@@ -461,6 +485,8 @@ class _CalculatorPageState extends State<CalculatorPage> {
                   _calculationState.activeField = ActiveField.daysExpression;
                 });
               },
+              // 変更点: 日数フィールドのアニメーション状態を渡す
+              isAnimating: _isDaysExpressionHighlighted,
             ),
             const SizedBox(height: 8),
             _buildDisplayField(
@@ -469,6 +495,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
               isBase: false,
               isFocused: _calculationState.activeField == ActiveField.finalDate,
               onTap: () => _selectDate(context, ActiveField.finalDate),
+              isAnimating: _isFinalDateHighlighted,
             ),
             const SizedBox(height: 8),
             Expanded(child: _buildKeypad()),
@@ -484,14 +511,19 @@ class _CalculatorPageState extends State<CalculatorPage> {
     required bool isBase,
     required bool isFocused,
     required VoidCallback onTap,
+    bool isAnimating = false,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
+    final Color highlightColor = colorScheme.tertiaryContainer;
+
     final bool isHighlighted = isBase || isFocused;
-    final Color backgroundColor = isHighlighted
+    final Color baseBackgroundColor = isHighlighted
         ? colorScheme.primaryContainer
         : theme.scaffoldBackgroundColor;
+    
+    final Color backgroundColor = isAnimating ? highlightColor : baseBackgroundColor;
     final Color borderColor = isFocused 
         ? colorScheme.primary 
         : Colors.grey.shade300;
@@ -502,44 +534,51 @@ class _CalculatorPageState extends State<CalculatorPage> {
 
     return SizedBox(
       height: 80,
-      child: Material(
-        color: backgroundColor,
-        shape: RoundedRectangleBorder(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        decoration: BoxDecoration(
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: borderColor, width: isFocused ? 2.0 : 1.0),
+          border: Border.all(
+            color: borderColor,
+            width: isFocused ? 2.0 : 1.0
+          ),
         ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                Expanded(
-                  child: Align(
-                    alignment: isDaysField ? Alignment.centerRight : Alignment.centerLeft,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.bold,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: isDaysField ? Alignment.centerRight : Alignment.centerLeft,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: textAlign,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                        textAlign: textAlign,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -634,7 +673,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
     );
   }
 
-  // 変更点: 1行表示にし、FittedBoxでテキストサイズを自動調整
   Widget _buildShortcutButton(int days) {
     final Color baseColor = Theme.of(context).colorScheme.primary; 
     final HSLColor hslColor = HSLColor.fromColor(baseColor);
@@ -642,7 +680,6 @@ class _CalculatorPageState extends State<CalculatorPage> {
     final Color buttonColor = darkerHslColor.toColor();
 
     final int weeks = days ~/ 7;
-    // 1行のテキストに変更
     final String buttonText = '+$days (${weeks}週)';
 
     return Expanded(
@@ -655,7 +692,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
                 borderRadius: BorderRadius.all(Radius.circular(12))),
             backgroundColor: buttonColor,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 4.0), // 左右のパディングを少し追加
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
             textStyle:
                 const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -664,7 +701,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
             fit: BoxFit.scaleDown,
             child: Text(
               buttonText,
-              maxLines: 1, // 念のため1行に制限
+              maxLines: 1,
             ),
           ),
         ),
