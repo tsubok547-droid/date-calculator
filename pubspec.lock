@@ -189,6 +189,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.20.2"
+  japanese_date_converter:
+    dependency: "direct main"
+    description:
+      name: japanese_date_converter
+      sha256: "7bf6eb635561b2502c2a7a6c1f4b66e35043e12cbd77dec8539674a2ee20180f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   json_annotation:
     dependency: transitive
     description:

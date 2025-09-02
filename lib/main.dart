@@ -8,23 +8,7 @@ import 'package:math_expressions/math_expressions.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-String toJapaneseEra(DateTime date) {
-  final int year = date.year;
-  final String dayOfWeek = DateFormat.E('ja_JP').format(date);
-
-  if (year >= 2019) {
-    final int reiwaYear = year - 2018;
-    return '令和${reiwaYear == 1 ? '元' : reiwaYear}年${date.month}月${date.day}日($dayOfWeek)';
-  } else if (year >= 1989) {
-    final int heiseiYear = year - 1988;
-    return '平成${heiseiYear == 1 ? '元' : heiseiYear}年${date.month}月${date.day}日($dayOfWeek)';
-  } else if (year >= 1926) {
-    final int showaYear = year - 1925;
-    return '昭和${showaYear == 1 ? '元' : showaYear}年${date.month}月${date.day}日($dayOfWeek)';
-  }
-  return DateFormat('yyyy年M月d日(E)', 'ja_JP').format(date);
-}
+import 'package:japanese_date_converter/japanese_date_converter.dart';
 
 
 void main() async {
@@ -377,7 +361,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
   String _formatDate(DateTime? date) {
     if (date == null) return '----年--月--日(-)';
     if (widget.isJapaneseCalendar) {
-      return toJapaneseEra(date);
+      return date.toJapaneseDateString();
     } else {
       return DateFormat('yyyy年M月d日(E)', 'ja_JP').format(date);
     }
@@ -680,7 +664,7 @@ class _CalculatorPageState extends State<CalculatorPage> {
     final Color buttonColor = darkerHslColor.toColor();
 
     final int weeks = days ~/ 7;
-    final String buttonText = '+$days (${weeks}週)';
+    final String buttonText = '+$days ($weeks週)';
 
     return Expanded(
       child: Padding(
@@ -827,8 +811,8 @@ class _HistoryPageState extends State<HistoryPage> {
                 final String standardDateStr;
                 final String finalDateStr;
                 if (widget.isJapaneseCalendar) {
-                  standardDateStr = toJapaneseEra(state.standardDate).split('(').first;
-                  finalDateStr = state.finalDate != null ? toJapaneseEra(state.finalDate!).split('(').first : '';
+                  standardDateStr = state.standardDate.toJapaneseDateString().split('(').first; 
+                  finalDateStr = state.finalDate != null ? state.finalDate!.toJapaneseDateString().split('(').first : '';
                 } else {
                   standardDateStr = DateFormat('yyyy/MM/dd').format(state.standardDate);
                   finalDateStr = state.finalDate != null ? DateFormat('yyyy/MM/dd').format(state.finalDate!) : '';
