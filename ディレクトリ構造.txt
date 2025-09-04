@@ -1,0 +1,33 @@
+20250904ディレクトリ分けした結果。
+
+lib/
+├── main.dart             # アプリの起動（エントリーポイント）
+│
+├── app.dart              # MaterialAppの定義とテーマ設定
+│
+├── services/
+│   └── settings_service.dart # SharedPreferencesを管理するクラス
+│
+├── providers/
+│   ├── calculator_provider.dart  # (新規) 計算ロジック担当
+│   └── services_provider.dart    # (新規) SettingsServiceをアプリ内で利用可能にする
+│
+├── models/
+│   └── calculation_state.dart # CalculationStateモデルクラス
+│
+├── screens/
+│   ├── calculator_page.dart  # 計算機ページのUIとロジック
+│   └── history_page.dart     # 履歴ページのUIとロジック
+│
+├── widgets/
+│   └── calculator/
+│   │    └──  action_buttons.dart  # (新規ファイル)
+│   │    └──  calculator_app_bar.dart # (新規ファイル)
+│   │    └──  comment_display.dart # (新規ファイル)
+│   │    └──  display_fields.dart  # (新規ファイル)
+│   ├── keypad.dart           # 電卓のキーパッドウィジェット
+│   └── comment_edit_dialog.dart #コメント編集ウィジェット
+│
+└── utils/
+    ├── constants.dart        # 定数（SharedPreferencesのキーなど）
+    └── date_formatter.dart   # 日付のフォーマット関数

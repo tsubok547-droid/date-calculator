@@ -18,12 +18,21 @@ dependencies:
   shared_preferences: ^2.5.3
   flutter_colorpicker: ^1.1.0
   package_info_plus: ^8.3.0
+  add_2_calendar: ^3.0.0
+  # --- ▼ Riverpod関連のパッケージを追加 ▼ ---
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  # --- ▲ ここまで ▲ ---
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
+  # --- ▼ Riverpodのコード生成用パッケージを追加 ▼ ---
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.2
+  # --- ▲ ここまで ▲ ---
 
 flutter:
   uses-material-design: true
@@ -36,4 +45,3 @@ flutter_launcher_icons:
   image_path: "assets/icon.png"
   adaptive_icon_background: "#F5F5F5"
   adaptive_icon_foreground: "assets/icon.png"
-  

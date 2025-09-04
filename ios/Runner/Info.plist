@@ -44,6 +44,11 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+    <true/>
+
+    <key>NSCalendarsUsageDescription</key>
+    <string>計算結果をカレンダーの予定として追加するために、カレンダーへのアクセス許可が必要です。</string>
+    <key>NSContactsUsageDescription</key>
+    <string>定期的な予定に招待者を追加するために、連絡先へのアクセス許可が必要です。</string>
 </dict>
 </plist>
