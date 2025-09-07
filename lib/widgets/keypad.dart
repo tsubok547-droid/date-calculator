@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 class Keypad extends StatelessWidget {
   final Function(String) onButtonPressed;
   final Function(int) onShortcutPressed;
+  // --- ▼ 変更点 ▼ ---
+  final bool areInputsDisabled; // キーパッドが無効かどうかの状態を受け取る
 
   const Keypad({
     super.key,
     required this.onButtonPressed,
     required this.onShortcutPressed,
+    required this.areInputsDisabled, // コンストラクタに追加
   });
+  // --- ▲ ここまで ▲ ---
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,10 @@ class Keypad extends StatelessWidget {
     final bool isNumberButton = "0123456789".contains(text);
     final Color? buttonColor = isNumberButton ? null : Theme.of(context).colorScheme.secondaryContainer;
     final Color? textColor = isNumberButton ? null : Theme.of(context).colorScheme.onSecondaryContainer;
+    
+    // --- ▼ 変更点 ▼ ---
+    // C以外のボタンを無効化するフラグ
+    final bool shouldBeDisabled = areInputsDisabled && text != 'C';
 
     return Expanded(
       flex: flex,
@@ -91,11 +99,13 @@ class Keypad extends StatelessWidget {
             foregroundColor: textColor,
             textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          onPressed: () => onButtonPressed(text),
+          // 無効化フラグがtrueの場合、onPressedにnullを設定してボタンを無効化
+          onPressed: shouldBeDisabled ? null : () => onButtonPressed(text),
           child: Text(text),
         ),
       ),
     );
+    // --- ▲ ここまで ▲ ---
   }
 
   Widget _buildShortcutButton(BuildContext context, int days) {
@@ -118,7 +128,10 @@ class Keypad extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          onPressed: () => onShortcutPressed(days),
+          // --- ▼ 変更点 ▼ ---
+          // areInputsDisabledがtrueの場合、onPressedにnullを設定してボタンを無効化
+          onPressed: areInputsDisabled ? null : () => onShortcutPressed(days),
+          // --- ▲ ここまで ▲ ---
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(buttonText, maxLines: 1),

@@ -1,16 +1,44 @@
 # date_calc
+# 日付計算ツール 🗓️
 
-A new Flutter project.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+基準日から日数を足したり引いたりして、未来や過去の日付を素早く計算するためのアプリです。日々の業務やプライベートでの「〇日後はいつ？」という疑問を、直感的な操作で即座に解決します。
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## ✨ 主な機能
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* **日付の加減算**: 基準日と日数（`+` `-` を含む式）から最終日を計算します。
+* **逆引き計算**: 基準日と最終日から、間の日数を自動で算出します。
+* **和暦/西暦表示**: ワンタップでカレンダーの表示を切り替え可能です。
+* **計算履歴**: コメント付きで計算結果を保存し、後から呼び出せます。
+* **テーマカラー変更**: お好みの色でアプリの見た目をカスタマイズできます。
+* **カレンダー連携**: 計算結果をデバイスの標準カレンダーに予定として登録できます。
+* **ショートカット**: 投薬期間などでよく使われる日数をボタン一つで入力できます。
+
+---
+
+## 🚀 今後の展望
+
+ユーザーの皆様からのフィードバックを元に、以下の機能追加を検討しています。
+
+* ショートカットボタンのカスタマイズ機能
+* 「月」や「年」単位での計算機能
+* ダークモード対応
+* カレンダー登録内容のプリセット機能
+
+---
+
+## ✉️ お問い合わせ
+
+アプリに関するご意見、ご要望、不具合の報告は、以下の連絡先までお気軽にお寄せください。
+
+* **メール**: `[あなたのメールアドレス]`
+* **プライバシーポリシー**: `[プライバシーポリシーへのリンクURL]`
+
+---
+
+## © 著作権
+
+© 2025 t-BocSoft. All Rights Reserved.

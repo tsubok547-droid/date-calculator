@@ -222,6 +222,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
               isJapaneseCalendar: widget.isJapaneseCalendar,
               isDaysExpressionHighlighted: _isDaysExpressionHighlighted,
               isFinalDateHighlighted: _isFinalDateHighlighted,
+
               onSelectDate: _selectDate,
             ),
             const SizedBox(height: 8),
@@ -229,6 +230,10 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
               child: Keypad(
                 onButtonPressed: _onButtonPressed,
                 onShortcutPressed: notifier.onShortcutPressed,
+                // --- ▼ 変更点 ▼ ---
+                // 現在の状態でキーパッドを無効化すべきか判断し、その結果を渡す
+                areInputsDisabled: calculationState.activeField == ActiveField.finalDate,
+                // --- ▲ ここまで ▲ ---
               ),
             ),
           ],
