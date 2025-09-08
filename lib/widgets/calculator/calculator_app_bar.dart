@@ -21,7 +21,7 @@ class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Text('日付 計算ツール'),
+      title: const Text('くすりの日数計算機'),
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       actions: [
         MenuAnchor(

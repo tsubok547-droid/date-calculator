@@ -18,7 +18,7 @@ Future<String?> showCommentEditDialog(BuildContext context, {String? currentComm
         autofocus: true,
         decoration: const InputDecoration(
           // 提案した新しいプレースホルダー
-          hintText: '例: 〇〇の記念日、プロジェクトの期限など',
+          hintText: '例：〇〇様 A錠 (一包化), B薬 (予製)',
         ),
       ),
       actions: [
