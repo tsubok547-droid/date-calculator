@@ -48,8 +48,8 @@
 
 アプリに関するご意見、ご要望、不具合の報告は、以下の連絡先までお気軽にお寄せください。
 
-* **メール**: `[あなたのメールアドレス]`
-* **プライバシーポリシー**: `[プライバシーポリシーへのリンクURL]`
+* **メール**: `tsubok547@gmail.com`
+* **プライバシーポリシー**: `https://github.com/tsubok547-droid/date-calculator/blob/main/Privacy_Policy.md`
 
 ---
 
