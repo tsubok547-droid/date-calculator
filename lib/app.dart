@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/calculator_page.dart';
 import 'providers/services_provider.dart';
 
+final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class DateCalculatorApp extends ConsumerWidget {
   const DateCalculatorApp({super.key});
 

@@ -6,11 +6,14 @@ lib/
 ├── app.dart              # MaterialAppの定義とテーマ設定
 │
 ├── services/
+│   ├── calendar_service.dart # 予定表にスケジュール追加
+│   ├── messenger_service.dart # SnackBar表示を管理するクラス
 │   └── settings_service.dart # SharedPreferencesを管理するクラス
 │
 ├── providers/
-│   ├── calculator_provider.dart  # (新規) 計算ロジック担当
-│   └── services_provider.dart    # (新規) SettingsServiceをアプリ内で利用可能にする
+│   ├── calculator_provider.dart  # 計算ロジック担当
+│   ├── calculator_provider.g.dart  # 自動生成ファイル
+│   └── services_provider.dart    # SettingsServiceをアプリ内で利用可能にする
 │
 ├── models/
 │   └── calculation_state.dart # CalculationStateモデルクラス

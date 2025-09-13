@@ -1,10 +1,7 @@
-// lib/screens/calculator_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:intl/intl.dart';
 import '../models/calculation_state.dart';
 import '../providers/calculator_provider.dart';
@@ -15,7 +12,8 @@ import '../widgets/calculator/comment_display.dart';
 import '../widgets/calculator/display_fields.dart';
 import '../widgets/keypad.dart';
 import 'history_page.dart';
-import '../widgets/comment_edit_dialog.dart'; 
+import '../widgets/comment_edit_dialog.dart';
+import '../services/calendar_service.dart';
 
 class CalculatorPage extends ConsumerStatefulWidget {
   final Function(Color) onColorChanged;
@@ -34,9 +32,10 @@ class CalculatorPage extends ConsumerStatefulWidget {
 }
 
 class _CalculatorPageState extends ConsumerState<CalculatorPage> {
-  // ハイライトアニメーション用の状態
   bool _isFinalDateHighlighted = false;
   bool _isDaysExpressionHighlighted = false;
+  
+  final _calendarService = CalendarService();
 
   final Map<String, Color> _predefinedColors = {
     'インディゴ': Colors.indigo,
@@ -48,7 +47,6 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     'ダスティローズ': const Color(0xFFE57373),
   };
   
-  // --- Event Handlers & UI Logic ---
   void _onButtonPressed(String text) {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     switch (text) {
@@ -89,13 +87,11 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final currentComment = ref.read(calculatorNotifierProvider).comment;
 
-    // 共通ダイアログを呼び出す
     final newComment = await showCommentEditDialog(
       context,
       currentComment: currentComment,
     );
 
-    // ダイアログがキャンセルされなかった場合のみ更新
     if (newComment != null) {
       notifier.updateComment(newComment.isEmpty ? null : newComment);
     }
@@ -103,15 +99,15 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
 
   Future<void> _promptAddEventToCalendar(CalculationState state) async {
     if (state.finalDate == null) return;
-    final String title = (state.comment?.isNotEmpty ?? false) ? '${state.comment} 最終日' : '最終日';
-    final DateTime startTime = DateTime(state.finalDate!.year, state.finalDate!.month, state.finalDate!.day, 9, 0);
-    final DateTime endTime = startTime.add(const Duration(hours: 1));
+    
+    final String title = (state.comment?.isNotEmpty ?? false) ? state.comment! : '計算結果の日付';
+    final DateTime startTime = state.finalDate!;
 
     final bool? add = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('カレンダーに予定を追加'),
-        content: Text('以下の内容で予定を追加しますか？\n\nタイトル: $title\n日時: ${DateFormat('M月d日(E) 9:00', 'ja_JP').format(startTime)}'),
+        content: Text('お使いのカレンダーアプリを開いて、以下の内容で予定を追加しますか？\n\nタイトル: $title\n日時: ${DateFormat('M月d日(E)', 'ja_JP').format(startTime)}'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('キャンセル')),
           TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('追加')),
@@ -120,7 +116,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     );
 
     if (add ?? false) {
-      await Add2Calendar.addEvent2Cal(Event(title: title, startDate: startTime, endDate: endTime));
+      await _calendarService.addEventToCalendar(state);
     }
   }
 
@@ -189,12 +185,11 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   void _showVersionInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
     if (!mounted) return;
-    showAboutDialog(context: context, applicationName: '日付計算ツール', applicationVersion: packageInfo.version, applicationLegalese: '© 2025 t-BocSoft');
+    showAboutDialog(context: context, applicationName: 'くすりの日数計算機', applicationVersion: packageInfo.version, applicationLegalese: '© 2025 t-BocSoft');
   }
 
   @override
   Widget build(BuildContext context) {
-    // Providerから状態を監視
     final calculationState = ref.watch(calculatorNotifierProvider);
     final notifier = ref.read(calculatorNotifierProvider.notifier);
 
@@ -222,7 +217,6 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
               isJapaneseCalendar: widget.isJapaneseCalendar,
               isDaysExpressionHighlighted: _isDaysExpressionHighlighted,
               isFinalDateHighlighted: _isFinalDateHighlighted,
-
               onSelectDate: _selectDate,
             ),
             const SizedBox(height: 8),
@@ -230,10 +224,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
               child: Keypad(
                 onButtonPressed: _onButtonPressed,
                 onShortcutPressed: notifier.onShortcutPressed,
-                // --- ▼ 変更点 ▼ ---
-                // 現在の状態でキーパッドを無効化すべきか判断し、その結果を渡す
                 areInputsDisabled: calculationState.activeField == ActiveField.finalDate,
-                // --- ▲ ここまで ▲ ---
               ),
             ),
           ],

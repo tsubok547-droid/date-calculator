@@ -1,4 +1,4 @@
-package com.example.date_calc
+package com.tbocsoft.kusurinonisuukeisanki
 
 import io.flutter.embedding.android.FlutterActivity
 

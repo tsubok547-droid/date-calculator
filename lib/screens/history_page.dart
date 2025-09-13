@@ -45,7 +45,6 @@ class _HistoryPageState extends State<HistoryPage> {
     // 永続化層に新しい順序を保存する
     widget.settingsService.saveHistory(_history);
   }
-  // --- ▲ ここまで ▲ ---
 
   Future<void> _clearHistory() async {
     await widget.settingsService.clearHistory();
@@ -132,7 +131,6 @@ class _HistoryPageState extends State<HistoryPage> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             )
-          // --- ▼ ListView.separated から ReorderableListView に変更 ▼ ---
           : ReorderableListView.builder(
               itemCount: _history.length,
               onReorder: _onReorder,
@@ -181,7 +179,6 @@ class _HistoryPageState extends State<HistoryPage> {
                       SnackBar(content: Text('「${state.comment ?? 'コメントなし'}」を削除しました')),
                     );
                   },
-                  // --- ▲ ここまで ▲ ---
                   child: _buildHistoryTile(state, index),
                 );
               },
@@ -233,5 +230,4 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
     );
   }
-  // --- ▲ ここまで ▲ ---
 }

@@ -1,6 +1,6 @@
 // lib/services/settings_service.dart
 
-import 'dart:convert'; // <-- この行を追加しました
+import 'dart:convert'; 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/calculation_state.dart';

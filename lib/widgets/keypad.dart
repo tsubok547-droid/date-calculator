@@ -83,7 +83,6 @@ class Keypad extends StatelessWidget {
     final Color? buttonColor = isNumberButton ? null : Theme.of(context).colorScheme.secondaryContainer;
     final Color? textColor = isNumberButton ? null : Theme.of(context).colorScheme.onSecondaryContainer;
     
-    // --- ▼ 変更点 ▼ ---
     // C以外のボタンを無効化するフラグ
     final bool shouldBeDisabled = areInputsDisabled && text != 'C';
 
@@ -105,7 +104,6 @@ class Keypad extends StatelessWidget {
         ),
       ),
     );
-    // --- ▲ ここまで ▲ ---
   }
 
   Widget _buildShortcutButton(BuildContext context, int days) {
@@ -128,10 +126,8 @@ class Keypad extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          // --- ▼ 変更点 ▼ ---
           // areInputsDisabledがtrueの場合、onPressedにnullを設定してボタンを無効化
           onPressed: areInputsDisabled ? null : () => onShortcutPressed(days),
-          // --- ▲ ここまで ▲ ---
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(buttonText, maxLines: 1),
