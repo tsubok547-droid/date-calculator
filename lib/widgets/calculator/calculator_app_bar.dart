@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
-import '../../screens/settings_page.dart'; // 設定画面をインポート
+import '../../screens/settings_page.dart';
 
 class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onNavigateToHistory;
-  // ▼▼▼ テーマカラー関連のプロパティはもう不要なので削除 ▼▼▼
-  // final Function(Color) onColorChanged;
-  // final VoidCallback onShowColorPicker;
-  // final Map<String, Color> predefinedColors;
-  // ▲▲▲ ここまで ▲▲▲
   final VoidCallback onShowVersionInfo;
-
+  // --- ▼▼▼ 2つのコールバックを追加 ▼▼▼ ---
+  final VoidCallback onExportHistory;
+  final VoidCallback onImportHistory;
+  // --- ▲▲▲ ここまで ▲▲▲ ---
 
   const CalculatorAppBar({
     super.key,
     required this.onNavigateToHistory,
-    // ▼▼▼ コンストラクタからも削除 ▼▼▼
-    // required this.onColorChanged,
-    // required this.onShowColorPicker,
-    // required this.predefinedColors,
-    // ▲▲▲ ここまで ▲▲▲
     required this.onShowVersionInfo,
+    // --- ▼▼▼ コンストラクタに追加 ▼▼▼ ---
+    required this.onExportHistory,
+    required this.onImportHistory,
+    // --- ▲▲▲ ここまで ▲▲▲ ---
   });
 
   @override
@@ -41,7 +38,16 @@ class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onNavigateToHistory,
               child: const Text('計算履歴'),
             ),
-            // TODO: 履歴のエクスポート/インポート機能はここに追加
+            // --- ▼▼▼ エクスポート・インポートボタンを設置 ▼▼▼ ---
+            MenuItemButton(
+              onPressed: onExportHistory,
+              child: const Text('履歴をエクスポート...'),
+            ),
+            MenuItemButton(
+              onPressed: onImportHistory,
+              child: const Text('履歴をインポート...'),
+            ),
+            // --- ▲▲▲ ここまで ▲▲▲ ---
             const Divider(),
             MenuItemButton(
               onPressed: () {
@@ -52,9 +58,6 @@ class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: const Text('機能設定'),
             ),
             const Divider(),
-            // ▼▼▼ 不要になったSubmenuButtonを削除 ▼▼▼
-            // SubmenuButton(...)
-            // ▲▲▲ ここまで ▲▲▲
             MenuItemButton(
               onPressed: onShowVersionInfo,
               child: const Text('バージョン情報'),

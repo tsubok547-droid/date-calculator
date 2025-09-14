@@ -6,7 +6,7 @@ import '../models/calculation_state.dart';
 import '../providers/calculator_provider.dart';
 import '../providers/services_provider.dart';
 import '../services/calendar_service.dart';
-import '../services/settings_service.dart';
+import '../services/history_service.dart';
 import '../widgets/calculator/action_buttons.dart';
 import '../widgets/calculator/calculator_app_bar.dart';
 import '../widgets/calculator/comment_display.dart';
@@ -34,6 +34,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   bool _isDaysExpressionHighlighted = false;
   
   final _calendarService = CalendarService();
+  final _historyService = HistoryService();
 
   void _onButtonPressed(String text) {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
@@ -67,28 +68,26 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
 
     if (state.finalDate != null) {
       await notifier.saveHistory();
-
-      // --- ▼▼▼ 設定を確認してからカレンダー連携を呼び出すように変更 ▼▼▼ ---
+      
       final settingsService = ref.read(settingsServiceProvider);
       if (settingsService.shouldAddEventToCalendar()) {
-        if (mounted) await _promptAddEventToCalendar(state);
+        await _promptAddEventToCalendar(state);
       }
-      // --- ▲▲▲ ここまで ▲▲▲ ---
     }
   }
 
   Future<void> _editComment() async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final currentComment = ref.read(calculatorNotifierProvider).comment;
-
+    
     final newComment = await showCommentEditDialog(
       context,
       currentComment: currentComment,
     );
+    
+    if (!mounted || newComment == null) return;
 
-    if (newComment != null) {
-      notifier.updateComment(newComment.isEmpty ? null : newComment);
-    }
+    notifier.updateComment(newComment.isEmpty ? null : newComment);
   }
 
   Future<void> _promptAddEventToCalendar(CalculationState state) async {
@@ -109,9 +108,9 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
       ),
     );
 
-    if (add ?? false) {
-      await _calendarService.addEventToCalendar(state);
-    }
+    if (!mounted || !(add ?? false)) return;
+
+    await _calendarService.addEventToCalendar(state);
   }
 
   Future<void> _selectDate(ActiveField field) async {
@@ -125,7 +124,8 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     
     final initialDate = (field == ActiveField.standardDate) ? state.standardDate : (state.finalDate ?? DateTime.now());
     final picked = await showDatePicker(context: context, initialDate: initialDate, firstDate: DateTime(1926), lastDate: DateTime(2101));
-    if (picked == null) return;
+    
+    if (!mounted || picked == null) return;
 
     if (field == ActiveField.standardDate) {
       notifier.updateStandardDate(picked);
@@ -137,9 +137,10 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   void _navigateToHistory() async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final settingsService = ref.read(settingsServiceProvider);
+    
+    final navigator = Navigator.of(context);
 
-    final result = await Navigator.push(
-      context,
+    final result = await navigator.push(
       MaterialPageRoute(
         builder: (context) => HistoryPage(
           settingsService: settingsService,
@@ -149,15 +150,84 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
       ),
     );
 
+    if (!mounted) return;
+
     if (result is CalculationState) {
       notifier.restoreFromHistory(result);
     }
   }
-  
+
   void _showVersionInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
+    
     if (!mounted) return;
+    
     showAboutDialog(context: context, applicationName: 'くすりの日数計算機', applicationVersion: packageInfo.version, applicationLegalese: '© 2025 t-BocSoft');
+  }
+
+  Future<void> _exportHistory() async {
+    final settingsService = ref.read(settingsServiceProvider);
+    final currentHistory = settingsService.getHistory();
+
+    if (currentHistory.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('エクスポートする履歴がありません。')),
+      );
+      return;
+    }
+
+    final success = await _historyService.exportHistory(currentHistory);
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('履歴を共有しました。')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('エクスポートに失敗しました。')),
+      );
+    }
+  }
+  
+  Future<void> _importHistory() async {
+    final List<CalculationState>? importedHistory = await _historyService.importHistory();
+    
+    if (!mounted) return;
+
+    if (importedHistory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('インポートがキャンセルされたか、ファイルの読み込みに失敗しました。')),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('履歴のインポート'),
+        content: const Text('現在の履歴はすべて上書きされます。よろしいですか？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('キャンセル')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('インポート')),
+        ],
+      ),
+    );
+    
+    if (!mounted || !(confirmed ?? false)) return;
+
+    final settingsService = ref.read(settingsServiceProvider);
+    await settingsService.saveHistory(importedHistory);
+    ref.invalidate(settingsServiceProvider);
+    
+    // --- ▼▼▼ [修正] mounted チェックを追加 ▼▼▼ ---
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${importedHistory.length}件の履歴をインポートしました。')),
+    );
+    // --- ▲▲▲ ここまで ▲▲▲ ---
   }
 
   @override
@@ -170,6 +240,8 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
       appBar: CalculatorAppBar(
         onNavigateToHistory: _navigateToHistory,
         onShowVersionInfo: _showVersionInfo,
+        onExportHistory: _exportHistory,
+        onImportHistory: _importHistory,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),

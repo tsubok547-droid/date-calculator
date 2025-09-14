@@ -8,6 +8,7 @@ lib/
 ├── services/
 │   ├── calendar_service.dart # 予定表にスケジュール追加
 │   ├── messenger_service.dart # SnackBar表示を管理するクラス
+│   ├── history_service.dart # 履歴リストのインポート・エクスポートを管理するクラス
 │   └── settings_service.dart # SharedPreferencesを管理するクラス
 │
 ├── providers/
@@ -16,7 +17,8 @@ lib/
 │   └── services_provider.dart    # SettingsServiceをアプリ内で利用可能にする
 │
 ├── models/
-│   └── calculation_state.dart # CalculationStateモデルクラス
+│   ├── calculation_state.dart # CalculationStateモデルクラス
+│   └── history_filter_state.dart # 履歴フィルタモデルクラス
 │
 ├── screens/
 │   ├── calculator_page.dart  # 計算機ページのUIとロジック

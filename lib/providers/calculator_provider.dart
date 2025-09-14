@@ -1,28 +1,22 @@
-// lib/providers/calculator_provider.dart
-
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:math_expressions/math_expressions.dart';
 import '../models/calculation_state.dart';
+import '../services/settings_service.dart'; // SettingsServiceをインポート
 import 'services_provider.dart';
 
-// コード生成のために必要
 part 'calculator_provider.g.dart';
 
 @riverpod
 class CalculatorNotifier extends _$CalculatorNotifier {
   @override
   CalculationState build() {
-    // 初期状態を生成
     final initialState = CalculationState(
       standardDate: DateTime.now(),
       daysExpression: '0',
     );
-    // 初期状態に基づいて最終日を計算
     return _calculateFinalDate(initialState);
   }
-
-  // --- 状態更新メソッド群 ---
 
   void onNumberPressed(String number) {
     if (state.activeField != ActiveField.daysExpression) return;
@@ -60,7 +54,7 @@ class CalculatorNotifier extends _$CalculatorNotifier {
   void onClearPressed() {
     state = _calculateFinalDate(state.copyWith(
       daysExpression: '0',
-      comment: '', // コメントもクリア
+      comment: '',
       activeField: ActiveField.daysExpression,
     ));
   }
@@ -99,8 +93,6 @@ class CalculatorNotifier extends _$CalculatorNotifier {
   void restoreFromHistory(CalculationState historyState) {
     state = historyState;
   }
-
-  // --- 計算ロジック ---
   
   CalculationState _recalculate(CalculationState currentState) {
     if (currentState.activeField == ActiveField.finalDate) {
@@ -119,11 +111,8 @@ class CalculatorNotifier extends _$CalculatorNotifier {
         return currentState.copyWith(forceFinalDateNull: true);
       }
       
-      // 1. 式を解釈(parse)してExpressionオブジェクトを作成
       final expression = ShuntingYardParser().parse(finalExpression);
-      // 2. RealEvaluatorにContextModelを渡してインスタンスを作成
       final evaluator = RealEvaluator(ContextModel());
-      // 3. evaluatorのevaluateメソッドにexpressionのみを渡して評価
       final days = evaluator.evaluate(expression).toInt();
 
       final finalDate = currentState.standardDate.add(Duration(days: days));
@@ -141,8 +130,6 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return currentState;
   }
   
-  // --- 履歴保存ロジック ---
-  
   Future<void> saveHistory() async {
     if (state.finalDate == null) return;
     
@@ -155,9 +142,11 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     
     history.insert(0, state);
     
-    if (history.length > 30) {
+    // --- ▼▼▼ 30 を新しい定数に置き換え ▼▼▼ ---
+    if (history.length > SettingsService.calculationHistoryLimit) {
       history.removeLast();
     }
+    // --- ▲▲▲ ここまで ▲▲▲ ---
     
     await settingsService.saveHistory(history);
   }

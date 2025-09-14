@@ -142,7 +142,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 final name = entry.key;
                 return ChoiceChip(
                   label: Text(name),
-                  selected: _settingsService.getPrimaryColor().value == color.value,
+                  selected: _settingsService.getPrimaryColor() == color,
                   onSelected: (selected) {
                     if (selected) {
                       _changeColor(color);
@@ -186,15 +186,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('機能設定'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            tooltip: 'デフォルトに戻す',
-            onPressed: _restoreDefaults,
-          ),
-        ],
+        // --- ▼▼▼ [修正] AppBarのデフォルトに戻すボタンを削除 ▼▼▼ ---
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.restore),
+        //     tooltip: 'デフォルトに戻す',
+        //     onPressed: _restoreDefaults,
+        //   ),
+        // ],
+        // --- ▲▲▲ ここまで ▲▲▲ ---
       ),
-      // --- ▼▼▼ [修正] ListViewをExpansionTileを使ったレイアウトに変更 ▼▼▼ ---
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -207,7 +208,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               subtitle: const Text('6つのボタンに日数を割り当てます'),
               children: [
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
                   child: Text('6つのショートカットボタンに、よく使う日数を割り当てます。'),
                 ),
                 for (int i = 0; i < 6; i++)
@@ -217,7 +218,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     currentValue: _currentShortcuts[i],
                     onChanged: (newValue) => _onShortcutChanged(i, newValue),
                   ),
-                const SizedBox(height: 8),
+                // --- ▼▼▼ [修正] ショートカット設定内にリセットボタンを配置 ▼▼▼ ---
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.restore, size: 18),
+                    label: const Text('ショートカットをデフォルトに戻す'),
+                    onPressed: _restoreDefaults,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(40),
+                    ),
+                  ),
+                ),
+                // --- ▲▲▲ ここまで ▲▲▲ ---
               ],
             ),
           ),
@@ -241,7 +254,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         subtitle: Text(
                           _predefinedColors.entries
                             .firstWhere(
-                              (entry) => entry.value.value == primaryColor.value, 
+                              (entry) => entry.value == primaryColor, 
                               orElse: () => const MapEntry('カスタム', Colors.grey)
                             ).key,
                         ),
@@ -295,7 +308,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
-      // --- ▲▲▲ ここまで ▲▲▲ ---
     );
   }
 
@@ -305,7 +317,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required int currentValue,
     required ValueChanged<int?> onChanged,
   }) {
-    // --- ▼▼▼ [修正] CardからInkWellに変更し、見た目を調整 ▼▼▼ ---
     return ListTile(
       title: Text(
         'ボタン $slotNumber',
@@ -329,6 +340,5 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         }
       },
     );
-    // --- ▲▲▲ ここまで ▲▲▲ ---
   }
 }

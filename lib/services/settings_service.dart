@@ -9,6 +9,9 @@ class SettingsService {
 
   static const List<int> defaultShortcuts = [7, 14, 28, 56, 84, 91];
   static const int searchHistoryLimit = 30;
+  // --- ▼▼▼ 計算履歴の上限値を定数として追加 ▼▼▼ ---
+  static const int calculationHistoryLimit = 500;
+  // --- ▲▲▲ ここまで ▲▲▲ ---
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -16,11 +19,12 @@ class SettingsService {
 
   // --- テーマカラー ---
   Color getPrimaryColor() {
-    final colorValue = _prefs.getInt(PrefKeys.primaryColor) ?? Colors.indigo.value;
+    final colorValue = _prefs.getInt(PrefKeys.primaryColor) ?? 0xFF3F51B5; // Colors.indigo.value
     return Color(colorValue);
   }
 
   Future<void> setPrimaryColor(Color color) async {
+    // ignore: deprecated_member_use
     await _prefs.setInt(PrefKeys.primaryColor, color.value);
   }
 
@@ -33,16 +37,14 @@ class SettingsService {
     await _prefs.setBool(PrefKeys.isJapaneseCalendar, isJapanese);
   }
 
-  // --- ▼▼▼ カレンダー連携設定を追加 ▼▼▼ ---
+  // --- カレンダー連携設定 ---
   bool shouldAddEventToCalendar() {
-    // デフォルトはON（true）
     return _prefs.getBool(PrefKeys.addEventToCalendar) ?? true;
   }
 
   Future<void> setAddEventToCalendar(bool isEnabled) async {
     await _prefs.setBool(PrefKeys.addEventToCalendar, isEnabled);
   }
-  // --- ▲▲▲ ここまで ▲▲▲ ---
 
   // --- 計算履歴 ---
   List<CalculationState> getHistory() {

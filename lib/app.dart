@@ -40,14 +40,6 @@ class DateCalculatorApp extends ConsumerWidget {
     );
   }
 
-  // settings_pageに移動するため、このメソッドはapp.dartで保持
-  void _changeColor(WidgetRef ref, Color color) {
-    final settingsService = ref.read(settingsServiceProvider);
-    settingsService.setPrimaryColor(color).then((_) {
-      ref.invalidate(settingsServiceProvider);
-    });
-  }
-
   void _toggleCalendarMode(WidgetRef ref) {
     final settingsService = ref.read(settingsServiceProvider);
     final currentMode = settingsService.isJapaneseCalendar();
