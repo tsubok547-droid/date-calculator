@@ -1,6 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
 import '../models/calculation_state.dart';
-import './messenger_service.dart'; // 新しいメッセンジャーサービスをインポート
+import './messenger_service.dart';
 import '../app.dart'; // app.dartをインポートしてキーにアクセス
 
 class CalendarService {
@@ -20,12 +20,11 @@ class CalendarService {
     if (await canLaunchUrl(calendarUrl)) {
       await launchUrl(calendarUrl);
     } else {
-      // GlobalKeyを直接渡す
       _messengerService.showSnackBar(messengerKey, 'カレンダーアプリを開けませんでした。');
     }
   }
 
   String _formatDateForUrl(DateTime date) {
-    return date.toIso8601String().split('.').first;
+    return date.toUtc().toIso8601String().split('.').first;
   }
 }

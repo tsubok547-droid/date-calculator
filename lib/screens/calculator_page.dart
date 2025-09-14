@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:intl/intl.dart';
 import '../models/calculation_state.dart';
 import '../providers/calculator_provider.dart';
 import '../providers/services_provider.dart';
+import '../services/calendar_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/calculator/action_buttons.dart';
 import '../widgets/calculator/calculator_app_bar.dart';
 import '../widgets/calculator/comment_display.dart';
@@ -13,16 +14,13 @@ import '../widgets/calculator/display_fields.dart';
 import '../widgets/keypad.dart';
 import 'history_page.dart';
 import '../widgets/comment_edit_dialog.dart';
-import '../services/calendar_service.dart';
 
 class CalculatorPage extends ConsumerStatefulWidget {
-  final Function(Color) onColorChanged;
   final bool isJapaneseCalendar;
   final VoidCallback onCalendarModeChanged;
 
   const CalculatorPage({
     super.key,
-    required this.onColorChanged,
     required this.isJapaneseCalendar,
     required this.onCalendarModeChanged,
   });
@@ -37,16 +35,6 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   
   final _calendarService = CalendarService();
 
-  final Map<String, Color> _predefinedColors = {
-    'インディゴ': Colors.indigo,
-    'アッシュグレー': const Color(0xFF78909C),
-    'ダスティミント': const Color(0xFF80CBC4),
-    'スカイブルー': const Color(0xFF64B5F6),
-    'ラベンダー': const Color(0xFFB39DDB),
-    'アイボリー': const Color(0xFFFFF9C4),
-    'ダスティローズ': const Color(0xFFE57373),
-  };
-  
   void _onButtonPressed(String text) {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     switch (text) {
@@ -79,7 +67,13 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
 
     if (state.finalDate != null) {
       await notifier.saveHistory();
-      if (mounted) await _promptAddEventToCalendar(state);
+
+      // --- ▼▼▼ 設定を確認してからカレンダー連携を呼び出すように変更 ▼▼▼ ---
+      final settingsService = ref.read(settingsServiceProvider);
+      if (settingsService.shouldAddEventToCalendar()) {
+        if (mounted) await _promptAddEventToCalendar(state);
+      }
+      // --- ▲▲▲ ここまで ▲▲▲ ---
     }
   }
 
@@ -160,28 +154,6 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     }
   }
   
-  void _showColorPicker() {
-    Color pickerColor = Theme.of(context).colorScheme.primary;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('カスタムカラーを選択'),
-          content: SingleChildScrollView(child: ColorPicker(pickerColor: pickerColor, onColorChanged: (color) => pickerColor = color)),
-          actions: [
-            TextButton(
-              child: const Text('決定'),
-              onPressed: () {
-                widget.onColorChanged(pickerColor);
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _showVersionInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
     if (!mounted) return;
@@ -192,14 +164,12 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   Widget build(BuildContext context) {
     final calculationState = ref.watch(calculatorNotifierProvider);
     final notifier = ref.read(calculatorNotifierProvider.notifier);
+    final settingsService = ref.watch(settingsServiceProvider);
 
     return Scaffold(
       appBar: CalculatorAppBar(
         onNavigateToHistory: _navigateToHistory,
-        onColorChanged: widget.onColorChanged,
-        onShowColorPicker: _showColorPicker,
         onShowVersionInfo: _showVersionInfo,
-        predefinedColors: _predefinedColors,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -225,6 +195,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
                 onButtonPressed: _onButtonPressed,
                 onShortcutPressed: notifier.onShortcutPressed,
                 areInputsDisabled: calculationState.activeField == ActiveField.finalDate,
+                settingsService: settingsService,
               ),
             ),
           ],

@@ -1,41 +1,47 @@
-// lib/widgets/keypad.dart
-
 import 'package:flutter/material.dart';
+import '../services/settings_service.dart';
 
 class Keypad extends StatelessWidget {
   final Function(String) onButtonPressed;
   final Function(int) onShortcutPressed;
-  // --- ▼ 変更点 ▼ ---
-  final bool areInputsDisabled; // キーパッドが無効かどうかの状態を受け取る
+  final bool areInputsDisabled;
+  // ▼▼▼ SettingsServiceを受け取るように変更 ▼▼▼
+  final SettingsService settingsService;
 
   const Keypad({
     super.key,
     required this.onButtonPressed,
     required this.onShortcutPressed,
-    required this.areInputsDisabled, // コンストラクタに追加
+    required this.areInputsDisabled,
+    required this.settingsService, // コンストラクタに追加
   });
-  // --- ▲ ここまで ▲ ---
+  // ▲▲▲ ここまで ▲▲▲
 
   @override
   Widget build(BuildContext context) {
+    // SettingsServiceからカスタムショートカットの値を取得
+    final shortcutValues = settingsService.getShortcutValues();
+
     return Column(
       children: [
+        // ▼▼▼ ショートカットボタンを動的に生成するように変更 ▼▼▼
         Expanded(
           flex: 2,
           child: Row(children: [
-            _buildShortcutButton(context, 7),
-            _buildShortcutButton(context, 14),
-            _buildShortcutButton(context, 28),
+            _buildShortcutButton(context, shortcutValues[0]),
+            _buildShortcutButton(context, shortcutValues[1]),
+            _buildShortcutButton(context, shortcutValues[2]),
           ]),
         ),
         Expanded(
           flex: 2,
           child: Row(children: [
-            _buildShortcutButton(context, 56),
-            _buildShortcutButton(context, 84),
-            _buildShortcutButton(context, 91),
+            _buildShortcutButton(context, shortcutValues[3]),
+            _buildShortcutButton(context, shortcutValues[4]),
+            _buildShortcutButton(context, shortcutValues[5]),
           ]),
         ),
+        // ▲▲▲ ここまで ▲▲▲
         const SizedBox(height: 8),
         Expanded(
           flex: 4,
@@ -82,8 +88,6 @@ class Keypad extends StatelessWidget {
     final bool isNumberButton = "0123456789".contains(text);
     final Color? buttonColor = isNumberButton ? null : Theme.of(context).colorScheme.secondaryContainer;
     final Color? textColor = isNumberButton ? null : Theme.of(context).colorScheme.onSecondaryContainer;
-    
-    // C以外のボタンを無効化するフラグ
     final bool shouldBeDisabled = areInputsDisabled && text != 'C';
 
     return Expanded(
@@ -98,7 +102,6 @@ class Keypad extends StatelessWidget {
             foregroundColor: textColor,
             textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          // 無効化フラグがtrueの場合、onPressedにnullを設定してボタンを無効化
           onPressed: shouldBeDisabled ? null : () => onButtonPressed(text),
           child: Text(text),
         ),
@@ -112,7 +115,9 @@ class Keypad extends StatelessWidget {
     final HSLColor darkerHslColor = hslColor.withLightness((hslColor.lightness - 0.15).clamp(0.0, 1.0));
     final Color buttonColor = darkerHslColor.toColor();
     final int weeks = days ~/ 7;
-    final String buttonText = '+$days ($weeks週)';
+    
+    // 7で割り切れる場合のみ週を表示するロジック
+    final String buttonText = (days % 7 == 0) ? '+$days ($weeks週)' : '+$days';
 
     return Expanded(
       child: Padding(
@@ -126,7 +131,6 @@ class Keypad extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          // areInputsDisabledがtrueの場合、onPressedにnullを設定してボタンを無効化
           onPressed: areInputsDisabled ? null : () => onShortcutPressed(days),
           child: FittedBox(
             fit: BoxFit.scaleDown,

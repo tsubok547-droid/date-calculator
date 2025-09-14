@@ -1,11 +1,10 @@
-// lib/app.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/calculator_page.dart';
 import 'providers/services_provider.dart';
 
+// アプリ全体でSnackBarを管理するためのグローバルキー
 final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class DateCalculatorApp extends ConsumerWidget {
@@ -13,14 +12,13 @@ class DateCalculatorApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Providerから設定を監視
     final settingsService = ref.watch(settingsServiceProvider);
-    // テーマカラーとカレンダーモードはStateで管理（Appの再描画が必要なため）
     final primaryColor = settingsService.getPrimaryColor();
     final isJapaneseCalendar = settingsService.isJapaneseCalendar();
 
     return MaterialApp(
-      title: '日付計算ツール',
+      scaffoldMessengerKey: messengerKey,
+      title: 'くすりの日数計算機',
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -33,26 +31,23 @@ class DateCalculatorApp extends ConsumerWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
         useMaterial3: true,
       ),
+      // ▼▼▼ CalculatorPageの呼び出し部分を修正 ▼▼▼
       home: CalculatorPage(
-        // コールバック関数を渡す
-        onColorChanged: (color) => _changeColor(ref, color),
+        // onColorChanged: (color) => _changeColor(ref, color), // ← この行を削除
         isJapaneseCalendar: isJapaneseCalendar,
         onCalendarModeChanged: () => _toggleCalendarMode(ref),
       ),
     );
   }
 
-  // 色変更のロジック
+  // settings_pageに移動するため、このメソッドはapp.dartで保持
   void _changeColor(WidgetRef ref, Color color) {
     final settingsService = ref.read(settingsServiceProvider);
     settingsService.setPrimaryColor(color).then((_) {
-      // 強制的に再ビルドを促すためにProviderを再読み込みさせる
-      // 少しトリッキーですが、App全体の状態を更新する簡単な方法の一つ
       ref.invalidate(settingsServiceProvider);
     });
   }
 
-  // カレンダーモード変更のロジック
   void _toggleCalendarMode(WidgetRef ref) {
     final settingsService = ref.read(settingsServiceProvider);
     final currentMode = settingsService.isJapaneseCalendar();

@@ -20,6 +20,7 @@ lib/
 │
 ├── screens/
 │   ├── calculator_page.dart  # 計算機ページのUIとロジック
+│   ├── settings_page.dart    # 設定ページのUIとロジック
 │   └── history_page.dart     # 履歴ページのUIとロジック
 │
 ├── widgets/

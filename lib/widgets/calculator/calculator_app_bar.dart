@@ -1,21 +1,25 @@
-// lib/widgets/calculator/calculator_app_bar.dart
-
 import 'package:flutter/material.dart';
+import '../../screens/settings_page.dart'; // 設定画面をインポート
 
 class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onNavigateToHistory;
-  final Function(Color) onColorChanged;
-  final VoidCallback onShowColorPicker;
+  // ▼▼▼ テーマカラー関連のプロパティはもう不要なので削除 ▼▼▼
+  // final Function(Color) onColorChanged;
+  // final VoidCallback onShowColorPicker;
+  // final Map<String, Color> predefinedColors;
+  // ▲▲▲ ここまで ▲▲▲
   final VoidCallback onShowVersionInfo;
-  final Map<String, Color> predefinedColors;
+
 
   const CalculatorAppBar({
     super.key,
     required this.onNavigateToHistory,
-    required this.onColorChanged,
-    required this.onShowColorPicker,
+    // ▼▼▼ コンストラクタからも削除 ▼▼▼
+    // required this.onColorChanged,
+    // required this.onShowColorPicker,
+    // required this.predefinedColors,
+    // ▲▲▲ ここまで ▲▲▲
     required this.onShowVersionInfo,
-    required this.predefinedColors,
   });
 
   @override
@@ -33,22 +37,28 @@ class CalculatorAppBar extends StatelessWidget implements PreferredSizeWidget {
             );
           },
           menuChildren: [
-            MenuItemButton(onPressed: onNavigateToHistory, child: const Text('計算履歴')),
-            const Divider(),
-            SubmenuButton(
-              menuChildren: [
-                ...predefinedColors.entries.map((entry) {
-                  return MenuItemButton(
-                    onPressed: () => onColorChanged(entry.value),
-                    child: Text(entry.key),
-                  );
-                }),
-                const Divider(),
-                MenuItemButton(onPressed: onShowColorPicker, child: const Text('カスタム...')),
-              ],
-              child: const Text('テーマカラーを変更'),
+            MenuItemButton(
+              onPressed: onNavigateToHistory,
+              child: const Text('計算履歴'),
             ),
-            MenuItemButton(onPressed: onShowVersionInfo, child: const Text('バージョン情報')),
+            // TODO: 履歴のエクスポート/インポート機能はここに追加
+            const Divider(),
+            MenuItemButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
+              },
+              child: const Text('機能設定'),
+            ),
+            const Divider(),
+            // ▼▼▼ 不要になったSubmenuButtonを削除 ▼▼▼
+            // SubmenuButton(...)
+            // ▲▲▲ ここまで ▲▲▲
+            MenuItemButton(
+              onPressed: onShowVersionInfo,
+              child: const Text('バージョン情報'),
+            ),
           ],
         ),
       ],
