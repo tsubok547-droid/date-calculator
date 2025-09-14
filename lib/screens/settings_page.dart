@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../models/history_duplicate_policy.dart';
 import '../providers/services_provider.dart';
 import '../services/settings_service.dart';
 
@@ -15,6 +16,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late List<int> _currentShortcuts;
   late SettingsService _settingsService;
   late bool _isAddEventToCalendarEnabled;
+  late HistoryDuplicatePolicy _historyDuplicatePolicy;
 
   final List<int> _weekOptions = const [7, 14, 21, 28, 42, 49, 56, 63, 70, 77, 84, 91, 98];
   final List<int> _monthOptions = const [30, 60, 90, 120];
@@ -35,6 +37,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _settingsService = ref.read(settingsServiceProvider);
     _currentShortcuts = List.from(_settingsService.getShortcutValues());
     _isAddEventToCalendarEnabled = _settingsService.shouldAddEventToCalendar();
+    _historyDuplicatePolicy = _settingsService.getHistoryDuplicatePolicy();
   }
 
   Future<int?> _showShortcutSelectionDialog(BuildContext context) {
@@ -186,15 +189,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('機能設定'),
-        // --- ▼▼▼ [修正] AppBarのデフォルトに戻すボタンを削除 ▼▼▼ ---
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.restore),
-        //     tooltip: 'デフォルトに戻す',
-        //     onPressed: _restoreDefaults,
-        //   ),
-        // ],
-        // --- ▲▲▲ ここまで ▲▲▲ ---
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -218,7 +212,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     currentValue: _currentShortcuts[i],
                     onChanged: (newValue) => _onShortcutChanged(i, newValue),
                   ),
-                // --- ▼▼▼ [修正] ショートカット設定内にリセットボタンを配置 ▼▼▼ ---
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
                   child: OutlinedButton.icon(
@@ -230,7 +223,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ),
                 ),
-                // --- ▲▲▲ ここまで ▲▲▲ ---
               ],
             ),
           ),
@@ -262,7 +254,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         onTap: _showThemeColorDialog,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300)
+                          side: BorderSide(color: Colors.grey.shade300), 
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -280,6 +272,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
           ),
+          // --- ▼▼▼ 新しい「履歴設定」セクションを独立して追加 ▼▼▼ ---
+          const SizedBox(height: 16),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              key: const PageStorageKey('history_settings'), // ユニークなキーに変更
+              leading: const Icon(Icons.history_outlined), // 履歴に合うアイコンに変更
+              title: Text('履歴設定', style: theme.textTheme.titleLarge),
+              subtitle: const Text('計算履歴の管理方法を設定します'),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0), // パディングを調整
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '履歴の重複削除ポリシー',
+                        style: theme.textTheme.titleMedium!.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const Text(
+                        '履歴保存時に、過去の重複する履歴をどのように扱うかを設定します。',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPolicyRadioListTile(
+                        title: '常に新しい履歴を追加',
+                        subtitle: 'コメントや計算内容が同じでも、全ての履歴を保存します。',
+                        value: HistoryDuplicatePolicy.keepAll,
+                        groupValue: _historyDuplicatePolicy,
+                        onChanged: _setHistoryDuplicatePolicy,
+                      ),
+                      _buildPolicyRadioListTile(
+                        title: 'コメントが同じ場合、古い履歴を削除',
+                        subtitle: 'コメントが同じであれば、古い計算履歴を削除して新しいものに置き換えます（デフォルト）。',
+                        value: HistoryDuplicatePolicy.removeSameComment,
+                        groupValue: _historyDuplicatePolicy,
+                        onChanged: _setHistoryDuplicatePolicy,
+                      ),
+                      _buildPolicyRadioListTile(
+                        title: 'コメントと計算内容が同じ場合のみ削除',
+                        subtitle: 'コメント、基準日、日数表現が全て同じ場合にのみ、古い履歴を削除します。',
+                        value: HistoryDuplicatePolicy.removeSameCalculation,
+                        groupValue: _historyDuplicatePolicy,
+                        onChanged: _setHistoryDuplicatePolicy,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // --- ▲▲▲ ここまで（「連携機能」から切り離した） ▲▲▲ ---
           const SizedBox(height: 16),
           Card(
             clipBehavior: Clip.antiAlias,
@@ -289,25 +333,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               title: Text('連携機能', style: theme.textTheme.titleLarge),
               subtitle: const Text('他のアプリとの連携を設定します'),
               children: [
-                SwitchListTile(
-                  title: const Text('カレンダーに予定を追加', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('計算完了後、カレンダーアプリに予定を追加する確認画面を表示します。'),
-                  value: _isAddEventToCalendarEnabled,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _isAddEventToCalendarEnabled = value;
-                    });
-                    _settingsService.setAddEventToCalendar(value);
-                    ref.invalidate(settingsServiceProvider);
-                  },
-                  secondary: const Icon(Icons.calendar_today_outlined),
-                  contentPadding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+                Padding( // 全体をPaddingで囲む
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0), // パディングを調整
+                  child: SwitchListTile(
+                    title: const Text('カレンダーに予定を追加', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('計算完了後、カレンダーアプリに予定を追加する確認画面を表示します。'),
+                    value: _isAddEventToCalendarEnabled,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _isAddEventToCalendarEnabled = value;
+                      });
+                      _settingsService.setAddEventToCalendar(value);
+                      ref.invalidate(settingsServiceProvider);
+                    },
+                    secondary: const Icon(Icons.calendar_today_outlined),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 0), // 親Paddingで調整するためここは0に
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ポリシー変更時の処理
+  void _setHistoryDuplicatePolicy(HistoryDuplicatePolicy? newPolicy) async {
+    if (newPolicy != null) {
+      setState(() {
+        _historyDuplicatePolicy = newPolicy;
+      });
+      await _settingsService.setHistoryDuplicatePolicy(newPolicy);
+      ref.invalidate(settingsServiceProvider); // 設定変更をアプリ全体に通知
+    }
+  }
+
+  Widget _buildPolicyRadioListTile({
+    required String title,
+    required String subtitle,
+    required HistoryDuplicatePolicy value,
+    required HistoryDuplicatePolicy groupValue,
+    required ValueChanged<HistoryDuplicatePolicy?> onChanged,
+  }) {
+    return RadioListTile<HistoryDuplicatePolicy>(
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0), // 親Paddingで調整するためここは0に
+      controlAffinity: ListTileControlAffinity.leading, // ラジオボタンを先頭に
+      visualDensity: VisualDensity.compact, // 項目間の余白を詰める
     );
   }
 

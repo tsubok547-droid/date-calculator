@@ -1,5 +1,3 @@
-20250904ディレクトリ分けした結果。
-
 lib/
 ├── main.dart             # アプリの起動（エントリーポイント）
 │
@@ -14,10 +12,13 @@ lib/
 ├── providers/
 │   ├── calculator_provider.dart  # 計算ロジック担当
 │   ├── calculator_provider.g.dart  # 自動生成ファイル
+│   ├── history_filter_provider.dart  # 履歴フィルタ担当
+│   ├── history_filter_provider.g.dart  # 自動生成ファイル
 │   └── services_provider.dart    # SettingsServiceをアプリ内で利用可能にする
 │
 ├── models/
 │   ├── calculation_state.dart # CalculationStateモデルクラス
+│   ├── history_duplicate_policy.dart # 履歴削除基準モデルクラス
 │   └── history_filter_state.dart # 履歴フィルタモデルクラス
 │
 ├── screens/
@@ -27,10 +28,12 @@ lib/
 │
 ├── widgets/
 │   └── calculator/
-│   │    └──  action_buttons.dart  # (新規ファイル)
-│   │    └──  calculator_app_bar.dart # (新規ファイル)
-│   │    └──  comment_display.dart # (新規ファイル)
-│   │    └──  display_fields.dart  # (新規ファイル)
+│   │    └──  action_buttons.dart  # アクションボタン
+│   │    └──  calculator_app_bar.dart # メニューバー
+│   │    └──  comment_display.dart # コメント枠
+│   │    └──  display_fields.dart  # 計算結果表示フィールド
+│   └── history/
+│   │    └──  history_filter_dialog.dart  # 履歴フィルタダイアログ
 │   ├── keypad.dart           # 電卓のキーパッドウィジェット
 │   └── comment_edit_dialog.dart #コメント編集ウィジェット
 │

@@ -14,6 +14,10 @@ The Service Provider does not share your information with any third parties, as 
 
 The Application may request permission to access your device's calendar. This permission is used **only when you explicitly choose to add a calculated date as an event to your calendar**. The Application does not read, modify (other than adding the event), or transmit your existing calendar data.
 
+## Data Export and Import
+
+The Application allows you to export your calculation history as a CSV file and import data from a CSV file. These processes are entirely managed on your device. The data contained in these files is not transmitted to the Service Provider, and you have full control over the created files.
+
 ## Data Retention Policy
 
 The Application stores data locally on your device. This data is retained until you either clear the application's data through your device's settings or uninstall the Application. You can also delete specific history items from within the Application. The Service Provider does not have access to this data and therefore cannot delete it on your behalf.

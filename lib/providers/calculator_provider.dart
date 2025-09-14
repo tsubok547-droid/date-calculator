@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:math_expressions/math_expressions.dart';
 import '../models/calculation_state.dart';
 import '../services/settings_service.dart'; // SettingsServiceをインポート
+import '../models/history_duplicate_policy.dart'; // enumをインポート
 import 'services_provider.dart';
 
 part 'calculator_provider.g.dart';
@@ -130,24 +131,46 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return currentState;
   }
   
-  Future<void> saveHistory() async {
-    if (state.finalDate == null) return;
-    
-    final settingsService = ref.read(settingsServiceProvider);
-    List<CalculationState> history = settingsService.getHistory();
+Future<void> saveHistory() async {
+  if (state.finalDate == null) return;
+  
+  final settingsService = ref.read(settingsServiceProvider);
+  List<CalculationState> history = settingsService.getHistory();
+  
+  // --- ▼▼▼ ここからが修正箇所 ▼▼▼ ---
 
-    if (state.comment != null && state.comment!.isNotEmpty) {
-      history.removeWhere((item) => item.comment == state.comment);
-    }
-    
-    history.insert(0, state);
-    
-    // --- ▼▼▼ 30 を新しい定数に置き換え ▼▼▼ ---
-    if (history.length > SettingsService.calculationHistoryLimit) {
-      history.removeLast();
-    }
-    // --- ▲▲▲ ここまで ▲▲▲ ---
-    
-    await settingsService.saveHistory(history);
+  // 1. 保存されているポリシー設定を取得
+  final policy = settingsService.getHistoryDuplicatePolicy();
+
+  // 2. ポリシーに応じて重複チェックのロジックを分岐
+  switch (policy) {
+    case HistoryDuplicatePolicy.keepAll:
+      // 何もせず、常に新しい履歴を追加する
+      break;
+    case HistoryDuplicatePolicy.removeSameComment:
+      // コメントが同じ古い履歴を削除 (これまでの挙動)
+      if (state.comment != null && state.comment!.isNotEmpty) {
+        history.removeWhere((item) => item.comment == state.comment);
+      }
+      break;
+    case HistoryDuplicatePolicy.removeSameCalculation:
+      // コメント、基準日、日数表現がすべて一致する古い履歴を削除
+      history.removeWhere((item) =>
+        item.comment == state.comment &&
+        item.standardDate == state.standardDate &&
+        item.daysExpression == state.daysExpression
+      );
+      break;
+  }
+  
+  // --- ▲▲▲ ここまでが修正箇所 ▲▲▲ ---
+  
+  history.insert(0, state);
+  
+  if (history.length > SettingsService.calculationHistoryLimit) {
+    history.removeLast();
+  }
+  
+  await settingsService.saveHistory(history);
   }
 }

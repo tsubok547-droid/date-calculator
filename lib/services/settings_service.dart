@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/calculation_state.dart';
 import '../utils/constants.dart';
+// --- ▼▼▼ 新しいファイルをインポート ▼▼▼ ---
+import '../models/history_duplicate_policy.dart';
+// --- ▲▲▲ ここまで ▲▲▲ ---
 
 class SettingsService {
   late final SharedPreferences _prefs;
 
   static const List<int> defaultShortcuts = [7, 14, 28, 56, 84, 91];
   static const int searchHistoryLimit = 30;
-  // --- ▼▼▼ 計算履歴の上限値を定数として追加 ▼▼▼ ---
   static const int calculationHistoryLimit = 500;
-  // --- ▲▲▲ ここまで ▲▲▲ ---
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -45,6 +46,20 @@ class SettingsService {
   Future<void> setAddEventToCalendar(bool isEnabled) async {
     await _prefs.setBool(PrefKeys.addEventToCalendar, isEnabled);
   }
+
+  // --- ▼▼▼ 履歴重複削除ポリシーの取得・設定を追加 ▼▼▼ ---
+  HistoryDuplicatePolicy getHistoryDuplicatePolicy() {
+    final policyString = _prefs.getString(PrefKeys.historyDuplicatePolicy) ?? HistoryDuplicatePolicy.removeSameComment.name; // デフォルトはコメントが同じなら削除
+    return HistoryDuplicatePolicy.values.firstWhere(
+      (e) => e.name == policyString,
+      orElse: () => HistoryDuplicatePolicy.removeSameComment, // 見つからない場合はデフォルト
+    );
+  }
+
+  Future<void> setHistoryDuplicatePolicy(HistoryDuplicatePolicy policy) async {
+    await _prefs.setString(PrefKeys.historyDuplicatePolicy, policy.name);
+  }
+  // --- ▲▲▲ ここまで ▲▲▲ ---
 
   // --- 計算履歴 ---
   List<CalculationState> getHistory() {
