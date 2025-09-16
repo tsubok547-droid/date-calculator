@@ -44,7 +44,7 @@
   math_expressions: 計算式評価 
   intl, japanese_date_converter: 日付フォーマット・和暦変換 
   csv, file_picker, share_plus: CSVデータ連携
-  url_launcher: カレンダー等の外部アプリ連携
+  add_2_calendar: カレンダー等の外部アプリ連携
   ...etc (詳細は pubspec.yaml を参照) 
 
 お問い合わせ

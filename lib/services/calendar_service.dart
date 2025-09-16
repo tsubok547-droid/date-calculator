@@ -1,30 +1,25 @@
-import 'package:url_launcher/url_launcher.dart';
+// lib/services/calendar_service.dart
+
+import 'package:add_2_calendar/add_2_calendar.dart';
 import '../models/calculation_state.dart';
-import './messenger_service.dart';
-import '../app.dart'; // app.dartをインポートしてキーにアクセス
 
 class CalendarService {
-  final _messengerService = MessengerService();
-
-  Future<void> addEventToCalendar(CalculationState state) async { 
+  Future<void> addEventToCalendar(CalculationState state) async {
     if (state.finalDate == null) return;
 
-    final DateTime startTime = state.finalDate!;
-    final DateTime endTime = startTime.add(const Duration(hours: 1));
-    final String title = state.comment ?? '計算結果の日付';
-    
-    final Uri calendarUrl = Uri.parse(
-      'https://ical.marudot.com/?title=${Uri.encodeComponent(title)}&start=${_formatDateForUrl(startTime)}&end=${_formatDateForUrl(endTime)}'
+    final DateTime finalDate = state.finalDate!;
+    final DateTime startTime = DateTime(finalDate.year, finalDate.month, finalDate.day, 9);
+    final DateTime endTime = DateTime(finalDate.year, finalDate.month, finalDate.day, 10);
+
+    final String finalTitle = '${state.comment ?? ""}最終日';
+
+    final Event event = Event(
+      title: finalTitle, // 修正したタイトルを設定
+      startDate: startTime,
+      endDate: endTime,
+      timeZone: startTime.timeZoneName,
     );
-
-    if (await canLaunchUrl(calendarUrl)) {
-      await launchUrl(calendarUrl);
-    } else {
-      _messengerService.showSnackBar(messengerKey, 'カレンダーアプリを開けませんでした。');
-    }
-  }
-
-  String _formatDateForUrl(DateTime date) {
-    return date.toUtc().toIso8601String().split('.').first;
+    
+    await Add2Calendar.addEvent2Cal(event);
   }
 }

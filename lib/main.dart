@@ -21,10 +21,8 @@ void main() async {
   ]);
   
   runApp(
-    // アプリ全体をProviderScopeで囲む
     ProviderScope(
       overrides: [
-        // settingsServiceProviderの初期値をここで設定
         settingsServiceProvider.overrideWithValue(settingsService),
       ],
       child: const DateCalculatorApp(),

@@ -9,6 +9,17 @@ class HistoryService {
   /// 履歴リストをCSVとしてエクスポート（共有）する
   Future<bool> exportHistory(List<CalculationState> history) async {
     try {
+      String sanitizeForCsv(String? input) {
+        if (input == null || input.isEmpty) return '';
+        final sanitizedInput = input;
+        if (sanitizedInput.startsWith('=') ||
+            sanitizedInput.startsWith('+') ||
+            sanitizedInput.startsWith('-') ||
+            sanitizedInput.startsWith('@')) {
+          return "'$sanitizedInput";
+        }
+        return sanitizedInput;
+      }
       final List<List<dynamic>> rows = [
         // ヘッダー行
         ['standardDate', 'daysExpression', 'finalDate', 'comment']
@@ -19,7 +30,7 @@ class HistoryService {
           state.standardDate.toIso8601String(),
           state.daysExpression,
           state.finalDate?.toIso8601String() ?? '',
-          state.comment ?? ''
+          sanitizeForCsv(state.comment) 
         ]);
       }
 
