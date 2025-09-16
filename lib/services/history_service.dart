@@ -28,7 +28,7 @@ class HistoryService {
       for (final state in history) {
         rows.add([
           state.standardDate.toIso8601String(),
-          state.daysExpression,
+          sanitizeForCsv(state.daysExpression), 
           state.finalDate?.toIso8601String() ?? '',
           sanitizeForCsv(state.comment) 
         ]);
