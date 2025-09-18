@@ -12,8 +12,11 @@ lib/
 ├── providers/
 │   ├── calculator_provider.dart  # 計算ロジック担当
 │   ├── calculator_provider.g.dart  # 自動生成ファイル
+│   ├── history_provider.dart         # 【新規】履歴の状態管理担当
+│   ├── history_provider.g.dart       # 【新規】自動生成ファイル
 │   ├── history_filter_provider.dart  # 履歴フィルタ担当
 │   ├── history_filter_provider.g.dart  # 自動生成ファイル
+│   ├── repositories_provider.dart  # 【新規】RepositoryをDIするためのProvider
 │   └── services_provider.dart    # SettingsServiceをアプリ内で利用可能にする
 │
 ├── models/
@@ -32,6 +35,11 @@ lib/
 │   │    └──  calculator_app_bar.dart # メニューバー
 │   │    └──  comment_display.dart # コメント枠
 │   │    └──  display_fields.dart  # 計算結果表示フィールド
+│   ├── settings/
+│   │   ├── history_settings_section.dart
+│   │   ├── integration_settings_section.dart
+│   │   ├── shortcut_settings_section.dart
+│   │   └── theme_settings_section.dart
 │   └── history/
 │   │    └──  history_filter_dialog.dart  # 履歴フィルタダイアログ
 │   ├── keypad.dart           # 電卓のキーパッドウィジェット
@@ -39,4 +47,5 @@ lib/
 │
 └── utils/
     ├── constants.dart        # 定数（SharedPreferencesのキーなど）
-    └── date_formatter.dart   # 日付のフォーマット関数
+    ├── date_formatter.dart       # 日付のフォーマット関数
+    └── string_sanitizer.dart     # 文字列の無害化ユーティリティ

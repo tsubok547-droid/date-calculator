@@ -114,43 +114,59 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     await _calendarService.addEventToCalendar(state);
   }
 
+  /// 【修正】日付フィールドがタップされた際の処理
   Future<void> _selectDate(ActiveField field) async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final state = ref.read(calculatorNotifierProvider);
 
+    // 日数フィールドがタップされた場合は、フォーカスを移すだけ
     if (field == ActiveField.daysExpression) {
       notifier.setActiveField(ActiveField.daysExpression);
       return;
     }
-    
-    final initialDate = (field == ActiveField.standardDate) ? state.standardDate : (state.finalDate ?? DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: AppConstants.minDate,
-      lastDate: AppConstants.maxDate,
-    );
-    
-    if (!mounted || picked == null) return;
 
+    // 最終日フィールドがタップされた場合
+    if (field == ActiveField.finalDate) {
+      // すでに最終日にフォーカスがある場合（2回目タップ）は、日付ピッカーを開く
+      if (state.activeField == ActiveField.finalDate) {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: state.finalDate ?? DateTime.now(),
+          firstDate: AppConstants.minDate,
+          lastDate: AppConstants.maxDate,
+        );
+        if (mounted && picked != null) {
+          notifier.updateFinalDate(picked);
+        }
+      } else {
+        // 他のフィールドにフォーカスがある場合（1回目タップ）は、計算とフォーカス移動のみ
+        notifier.settleCalculationAndFocusFinalDate();
+      }
+      return;
+    }
+
+    // 基準日フィールドがタップされた場合（常に日付ピッカーを開く）
     if (field == ActiveField.standardDate) {
-      notifier.updateStandardDate(picked);
-    } else if (field == ActiveField.finalDate) {
-      notifier.updateFinalDate(picked);
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: state.standardDate,
+        firstDate: AppConstants.minDate,
+        lastDate: AppConstants.maxDate,
+      );
+      if (mounted && picked != null) {
+        notifier.updateStandardDate(picked);
+      }
     }
   }
 
+  /// 【修正】HistoryPageの呼び出し方を変更
   void _navigateToHistory() async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
-    final settingsService = ref.read(settingsServiceProvider);
-    
     final navigator = Navigator.of(context);
 
     final result = await navigator.push(
       MaterialPageRoute(
         builder: (context) => HistoryPage(
-          settingsService: settingsService,
-          history: settingsService.getHistory(),
           isJapaneseCalendar: widget.isJapaneseCalendar,
         ),
       ),

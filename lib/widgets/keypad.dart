@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
-import '../utils/constants.dart'; // 定数ファイルをインポート
+import '../utils/constants.dart';
 
 class Keypad extends StatelessWidget {
   final Function(String) onButtonPressed;
   final Function(int) onShortcutPressed;
   final bool areInputsDisabled;
-  // ▼▼▼ SettingsServiceを受け取るように変更 ▼▼▼
   final SettingsService settingsService;
 
   const Keypad({
@@ -14,18 +13,15 @@ class Keypad extends StatelessWidget {
     required this.onButtonPressed,
     required this.onShortcutPressed,
     required this.areInputsDisabled,
-    required this.settingsService, // コンストラクタに追加
+    required this.settingsService,
   });
-  // ▲▲▲ ここまで ▲▲▲
 
   @override
   Widget build(BuildContext context) {
-    // SettingsServiceからカスタムショートカットの値を取得
     final shortcutValues = settingsService.getShortcutValues();
 
     return Column(
       children: [
-        // ▼▼▼ ショートカットボタンを動的に生成するように変更 ▼▼▼
         Expanded(
           flex: 2,
           child: Row(children: [
@@ -42,7 +38,6 @@ class Keypad extends StatelessWidget {
             _buildShortcutButton(context, shortcutValues[5]),
           ]),
         ),
-        // ▲▲▲ ここまで ▲▲▲
         const SizedBox(height: 8),
         Expanded(
           flex: 4,
@@ -75,9 +70,9 @@ class Keypad extends StatelessWidget {
           flex: 4,
           child: Row(
             children: [
-              _buildKeypadButton(context, AppConstants.keyClear), // 定数を使用
+              _buildKeypadButton(context, AppConstants.keyClear),
               _buildKeypadButton(context, '0', flex: 2),
-              _buildKeypadButton(context, AppConstants.keyEnter), // 定数を使用
+              _buildKeypadButton(context, AppConstants.keyEnter),
             ],
           ),
         ),
@@ -85,11 +80,12 @@ class Keypad extends StatelessWidget {
     );
   }
 
+  /// 【修正】Enterキーの無効化条件を変更
   Widget _buildKeypadButton(BuildContext context, String text, {int flex = 1}) {
     final bool isNumberButton = "0123456789".contains(text);
     final Color? buttonColor = isNumberButton ? null : Theme.of(context).colorScheme.secondaryContainer;
     final Color? textColor = isNumberButton ? null : Theme.of(context).colorScheme.onSecondaryContainer;
-    final bool shouldBeDisabled = areInputsDisabled && text != 'C';
+    final bool shouldBeDisabled = areInputsDisabled && text != 'C' && text != AppConstants.keyEnter;
 
     return Expanded(
       flex: flex,
@@ -110,6 +106,7 @@ class Keypad extends StatelessWidget {
     );
   }
 
+  /// 【修正】ショートカットキーを常に有効化
   Widget _buildShortcutButton(BuildContext context, int days) {
     final Color baseColor = Theme.of(context).colorScheme.primary;
     final HSLColor hslColor = HSLColor.fromColor(baseColor);
@@ -117,7 +114,6 @@ class Keypad extends StatelessWidget {
     final Color buttonColor = darkerHslColor.toColor();
     final int weeks = days ~/ 7;
     
-    // 7で割り切れる場合のみ週を表示するロジック
     final String buttonText = (days % 7 == 0) ? '+$days ($weeks週)' : '+$days';
 
     return Expanded(
@@ -132,7 +128,7 @@ class Keypad extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          onPressed: areInputsDisabled ? null : () => onShortcutPressed(days),
+          onPressed: () => onShortcutPressed(days),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(buttonText, maxLines: 1),

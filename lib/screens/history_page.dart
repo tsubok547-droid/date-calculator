@@ -1,62 +1,106 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Riverpodをインポート
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../models/calculation_state.dart';
 import '../models/history_filter_state.dart';
-import '../providers/history_filter_provider.dart'; // 作成したProviderをインポート
-import '../services/settings_service.dart';
+import '../providers/history_filter_provider.dart';
+import '../providers/history_provider.dart';
 import '../utils/date_formatter.dart';
 import '../widgets/comment_edit_dialog.dart';
 import '../widgets/history/history_filter_dialog.dart';
 
-// --- ▼▼▼ ConsumerStatefulWidget に変更 ▼▼▼ ---
-class HistoryPage extends ConsumerStatefulWidget {
-  final SettingsService settingsService;
-  // historyは初期表示にのみ使用
-  final List<CalculationState> history;
+part 'history_page.g.dart';
+
+/// フィルターがアクティブかどうかを判定するProvider
+@riverpod
+bool isFilterActive(Ref ref) {
+  final filter = ref.watch(historyFilterNotifierProvider);
+  return filter.comment != null && filter.comment!.isNotEmpty ||
+      filter.standardDateStart != null ||
+      filter.standardDateEnd != null ||
+      filter.finalDateStart != null ||
+      filter.finalDateEnd != null;
+}
+
+/// フィルターされた履歴リストを提供するProvider
+@riverpod
+List<CalculationState> filteredHistory(Ref ref) {
+  // 元となる全履歴リストを監視
+  final fullHistory = ref.watch(historyNotifierProvider);
+  // フィルター条件を監視
+  final filter = ref.watch(historyFilterNotifierProvider);
+  // フィルターがアクティブでなければ全履歴をそのまま返す
+  if (!ref.watch(isFilterActiveProvider)) {
+    return fullHistory;
+  }
+
+  return fullHistory.where((item) {
+    final conditions = <bool>[];
+
+    // コメント
+    if (filter.comment != null && filter.comment!.isNotEmpty) {
+      conditions
+          .add(item.comment?.toLowerCase().contains(filter.comment!.toLowerCase()) ?? false);
+    }
+    // 基準日
+    if (filter.standardDateStart != null || filter.standardDateEnd != null) {
+      bool isInRange = true;
+      if (filter.standardDateStart != null &&
+          item.standardDate.isBefore(filter.standardDateStart!)) {
+        isInRange = false;
+      }
+      if (filter.standardDateEnd != null &&
+          item.standardDate.isAfter(filter.standardDateEnd!.add(const Duration(days: 1)))) {
+        isInRange = false;
+      }
+      conditions.add(isInRange);
+    }
+    // 最終日
+    if (filter.finalDateStart != null || filter.finalDateEnd != null) {
+      if (item.finalDate == null) {
+        conditions.add(false);
+      } else {
+        bool isInRange = true;
+        if (filter.finalDateStart != null &&
+            item.finalDate!.isBefore(filter.finalDateStart!)) {
+          isInRange = false;
+        }
+        if (filter.finalDateEnd != null &&
+            item.finalDate!.isAfter(filter.finalDateEnd!.add(const Duration(days: 1)))) {
+          isInRange = false;
+        }
+        conditions.add(isInRange);
+      }
+    }
+
+    if (conditions.isEmpty) return true;
+    if (filter.logic == FilterLogic.and) return conditions.every((c) => c);
+    return conditions.any((c) => c);
+  }).toList();
+}
+
+class HistoryPage extends ConsumerWidget {
   final bool isJapaneseCalendar;
 
   const HistoryPage({
     super.key,
-    required this.settingsService,
-    required this.history,
     required this.isJapaneseCalendar,
   });
 
-  @override
-  ConsumerState<HistoryPage> createState() => _HistoryPageState();
-}
-
-class _HistoryPageState extends ConsumerState<HistoryPage> {
-  // --- ▲▲▲ ここまで ▲▲▲ ---
-
-  // 全履歴を保持するリスト
-  late List<CalculationState> _fullHistory;
-
-  @override
-  void initState() {
-    super.initState();
-    _fullHistory = List<CalculationState>.from(widget.history);
-  }
-
-  void _onReorder(int oldIndex, int newIndex) {
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
+  Future<void> _showFilterDialog(BuildContext context, WidgetRef ref) async {
+    final newFilter = await showDialog<HistoryFilterState>(
+      context: context,
+      builder: (context) => HistoryFilterDialog(
+        currentFilter: ref.read(historyFilterNotifierProvider),
+      ),
+    );
+    if (newFilter != null) {
+      ref.read(historyFilterNotifierProvider.notifier).updateFilter(newFilter);
     }
-    final item = _fullHistory.removeAt(oldIndex);
-    setState(() {
-      _fullHistory.insert(newIndex, item);
-    });
-    widget.settingsService.saveHistory(_fullHistory);
   }
 
-  Future<void> _clearHistory() async {
-    await widget.settingsService.clearHistory();
-    setState(() {
-      _fullHistory.clear();
-    });
-  }
-  
-  void _showClearHistoryDialog() {
+  void _showClearHistoryDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -70,7 +114,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           TextButton(
             child: const Text('削除'),
             onPressed: () {
-              _clearHistory();
+              ref.read(historyNotifierProvider.notifier).clear();
               Navigator.of(context).pop();
             },
           ),
@@ -78,47 +122,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       ),
     );
   }
-  
-  Future<void> _showFilterDialog() async {
-    final filterNotifier = ref.read(historyFilterNotifierProvider.notifier);
-    final currentFilter = ref.read(historyFilterNotifierProvider);
 
-    final newFilter = await showDialog<HistoryFilterState>(
-      context: context,
-      builder: (context) => HistoryFilterDialog(currentFilter: currentFilter),
-    );
-
-    if (newFilter != null) {
-      filterNotifier.updateFilter(newFilter);
-    }
-  }
-
-  Future<void> _editComment(int index, List<CalculationState> displayedHistory) async {
-    final originalState = displayedHistory[index];
-    
-    final newComment = await showCommentEditDialog(
-      context,
-      currentComment: originalState.comment,
-    );
-
-    if (newComment != null && newComment != originalState.comment) {
-      final newState = originalState.copyWith(
-        comment: newComment.isEmpty ? null : newComment,
-      );
-      
-      // 全履歴リストから該当の項目を探して更新
-      final originalIndex = _fullHistory.indexWhere((item) => item == originalState);
-      if (originalIndex != -1) {
-        setState(() {
-          _fullHistory[originalIndex] = newState;
-        });
-        await widget.settingsService.saveHistory(_fullHistory);
-      }
-    }
-  }
-
-  void _continueCalculation(int index, List<CalculationState> displayedHistory) {
-    final oldState = displayedHistory[index];
+  void _continueCalculation(BuildContext context, CalculationState oldState) {
     if (oldState.finalDate == null) return;
 
     final newState = CalculationState(
@@ -132,59 +137,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    // --- ▼▼▼ フィルターの状態を監視 ▼▼▼ ---
-    final filter = ref.watch(historyFilterNotifierProvider);
-    final filterNotifier = ref.read(historyFilterNotifierProvider.notifier);
-    // --- ▲▲▲ ここまで ▲▲▲ ---
-
-    // --- ▼▼▼ 絞り込みロジック ▼▼▼ ---
-    final bool isFilterActive = filter.comment != null && filter.comment!.isNotEmpty ||
-        filter.standardDateStart != null || filter.standardDateEnd != null ||
-        filter.finalDateStart != null || filter.finalDateEnd != null;
-
-    final List<CalculationState> displayedHistory = !isFilterActive
-      ? _fullHistory
-      : _fullHistory.where((item) {
-          final conditions = <bool>[];
-          
-          // コメント
-          if (filter.comment != null && filter.comment!.isNotEmpty) {
-            conditions.add(item.comment?.toLowerCase().contains(filter.comment!.toLowerCase()) ?? false);
-          }
-          // 基準日
-          if (filter.standardDateStart != null || filter.standardDateEnd != null) {
-            bool isInRange = true;
-            if (filter.standardDateStart != null && item.standardDate.isBefore(filter.standardDateStart!)) {
-              isInRange = false;
-            }
-            if (filter.standardDateEnd != null && item.standardDate.isAfter(filter.standardDateEnd!.add(const Duration(days: 1)))) {
-              isInRange = false;
-            }
-            conditions.add(isInRange);
-          }
-          // 最終日
-          if (filter.finalDateStart != null || filter.finalDateEnd != null) {
-            if (item.finalDate == null) {
-              conditions.add(false);
-            } else {
-              bool isInRange = true;
-              if (filter.finalDateStart != null && item.finalDate!.isBefore(filter.finalDateStart!)) {
-                isInRange = false;
-              }
-              if (filter.finalDateEnd != null && item.finalDate!.isAfter(filter.finalDateEnd!.add(const Duration(days: 1)))) {
-                isInRange = false;
-              }
-              conditions.add(isInRange);
-            }
-          }
-
-          if (conditions.isEmpty) return true;
-          if (filter.logic == FilterLogic.and) return conditions.every((c) => c);
-          return conditions.any((c) => c);
-
-        }).toList();
-    // --- ▲▲▲ ここまで ▲▲▲ ---
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFilterActive = ref.watch(isFilterActiveProvider);
+    final fullHistory = ref.watch(historyNotifierProvider);
+    final displayedHistory = ref.watch(filteredHistoryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -193,94 +149,109 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           IconButton(
             icon: Icon(isFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined),
             tooltip: 'フィルター',
-            onPressed: _showFilterDialog,
+            onPressed: () => _showFilterDialog(context, ref),
           ),
-          // --- ▼▼▼ フィルターリセットボタンを追加 ▼▼▼ ---
           if (isFilterActive)
             IconButton(
               icon: const Icon(Icons.filter_alt_off_outlined),
               tooltip: 'フィルターをリセット',
-              onPressed: filterNotifier.resetFilter,
+              onPressed: ref.read(historyFilterNotifierProvider.notifier).resetFilter,
             ),
-          // --- ▲▲▲ ここまで ▲▲▲ ---
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: '履歴をクリア',
-            onPressed: _fullHistory.isEmpty ? null : _showClearHistoryDialog,
+            onPressed: fullHistory.isEmpty
+                ? null
+                : () => _showClearHistoryDialog(context, ref),
           ),
         ],
       ),
-      body: displayedHistory.isEmpty
-          ? Center(
-              child: Text(
-                isFilterActive ? '条件に合う履歴はありません。' : '計算履歴はありません。',
-                style: Theme.of(context).textTheme.titleMedium,
+      body: () {
+        if (isFilterActive && displayedHistory.isEmpty) {
+          return Center(
+            child: Text('条件に合う履歴はありません。', style: Theme.of(context).textTheme.titleMedium),
+          );
+        }
+        if (fullHistory.isEmpty) {
+          return Center(
+            child: Text('計算履歴はありません。', style: Theme.of(context).textTheme.titleMedium),
+          );
+        }
+        return ReorderableListView.builder(
+          itemCount: displayedHistory.length,
+          onReorder: isFilterActive
+              ? (o, n) {}
+              : (oldIndex, newIndex) =>
+                  ref.read(historyNotifierProvider.notifier).reorder(oldIndex, newIndex),
+          itemBuilder: (context, index) {
+            final state = displayedHistory[index];
+            return Dismissible(
+              key: ValueKey(state.hashCode),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (_) => _confirmDismiss(context),
+              background: Container(
+                color: Colors.red.shade400,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: const Icon(Icons.delete_forever, color: Colors.white),
               ),
-            )
-          // --- ▼▼▼ フィルター適用中は並び替えを無効化 ▼▼▼ ---
-          : ReorderableListView.builder(
-              itemCount: displayedHistory.length,
-              onReorder: isFilterActive ? (o, n) {} : _onReorder,
-              itemBuilder: (context, index) {
-                final state = displayedHistory[index];
-                
-                return Dismissible(
-                  key: ValueKey(state), 
-                  direction: DismissDirection.endToStart,
-                  confirmDismiss: (direction) async {
-                    return await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('履歴の削除'),
-                        content: const Text('この履歴を削除してもよろしいですか？'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('キャンセル'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('削除'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  background: Container(
-                    color: Colors.red.shade400,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: const Icon(Icons.delete_forever, color: Colors.white),
-                  ),
-                  onDismissed: (direction) {
-                    setState(() {
-                      _fullHistory.remove(state);
-                    });
-                    widget.settingsService.saveHistory(_fullHistory);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('「${state.comment ?? 'コメントなし'}」を削除しました')),
-                    );
-                  },
-                  child: _buildHistoryTile(state, index, displayedHistory, isFilterActive: isFilterActive),
+              onDismissed: (direction) {
+                ref.read(historyNotifierProvider.notifier).remove(state);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('「${state.comment ?? 'コメントなし'}」を削除しました')),
                 );
               },
-            ),
+              child: _buildHistoryTile(
+                context,
+                ref,
+                state,
+                isFilterActive: isFilterActive,
+              ),
+            );
+          },
+        );
+      }(),
     );
   }
 
-  Widget _buildHistoryTile(CalculationState state, int index, List<CalculationState> displayedHistory, {required bool isFilterActive}) {
+  Future<bool?> _confirmDismiss(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('履歴の削除'),
+        content: const Text('この履歴を削除してもよろしいですか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('削除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTile(
+    BuildContext context,
+    WidgetRef ref,
+    CalculationState state, {
+    required bool isFilterActive,
+  }) {
     final standardDateStr = formatDate(
       state.standardDate,
-      isJapanese: widget.isJapaneseCalendar,
+      isJapanese: isJapaneseCalendar,
       style: DateFormatStyle.compact,
     );
     final finalDateStr = formatDate(
       state.finalDate,
-      isJapanese: widget.isJapaneseCalendar,
+      isJapanese: isJapaneseCalendar,
       style: DateFormatStyle.compact,
     );
-    final expressionStr = state.daysExpression
-        .replaceAllMapped(RegExp(r'([+\-])'), (match) => ' ${match.group(1)} ');
+    final expressionStr =
+        state.daysExpression.replaceAllMapped(RegExp(r'([+\-])'), (match) => ' ${match.group(1)} ');
 
     return ListTile(
       leading: isFilterActive ? null : const Icon(Icons.drag_handle),
@@ -288,25 +259,29 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         state.comment ?? 'コメントなし',
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(
-        '$standardDateStr $expressionStr\n= $finalDateStr',
-      ),
+      subtitle: Text('$standardDateStr $expressionStr\n= $finalDateStr'),
       isThreeLine: true,
-      onTap: () {
-        Navigator.of(context).pop(state);
-      },
+      onTap: () => Navigator.of(context).pop(state),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'コメントを編集',
-            onPressed: () => _editComment(index, displayedHistory),
+            onPressed: () async {
+              final newComment = await showCommentEditDialog(
+                context,
+                currentComment: state.comment,
+              );
+              if (newComment != null && newComment != state.comment) {
+                ref.read(historyNotifierProvider.notifier).updateComment(state, newComment);
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.double_arrow_outlined),
             tooltip: '続きから計算',
-            onPressed: () => _continueCalculation(index, displayedHistory),
+            onPressed: () => _continueCalculation(context, state),
           ),
         ],
       ),

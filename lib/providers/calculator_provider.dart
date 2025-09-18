@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:math_expressions/math_expressions.dart';
 import '../models/calculation_state.dart';
-import 'repositories_provider.dart'; 
+import 'repositories_provider.dart';
 
 part 'calculator_provider.g.dart';
 
@@ -19,8 +19,6 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return _calculateFinalDate(initialState);
   }
 
-  // ... (onNumberPressed から _calculateDaysFromFinalDate までのメソッドは変更なし) ...
-  
   void onNumberPressed(String number) {
     if (state.activeField != ActiveField.daysExpression) return;
     final newExpression = (state.daysExpression == '0')
@@ -91,6 +89,14 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     state = historyState;
   }
   
+  /// 【新規】計算を確定させ、最終日フィールドにフォーカスを移動する
+  void settleCalculationAndFocusFinalDate() {
+    // 既存の「最終日から日数を逆算する」ロジックを呼び出す
+    final settledState = _calculateDaysFromFinalDate(state);
+    // フォーカスを最終日にセットして状態を更新する
+    state = settledState.copyWith(activeField: ActiveField.finalDate);
+  }
+
   CalculationState _recalculate(CalculationState currentState) {
     if (currentState.activeField == ActiveField.finalDate) {
       return _calculateDaysFromFinalDate(currentState);
@@ -126,9 +132,7 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return currentState;
   }
  
-  /// 現在の計算状態を履歴に保存する
   Future<void> saveCurrentStateToHistory() async {
-    // `historyRepositoryProvider` を介して、新しく作成したリポジトリの `save` メソッドを呼び出す
     await ref.read(historyRepositoryProvider).save(state);
   }
 }
