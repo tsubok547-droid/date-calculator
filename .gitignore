@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/key.properties
+
+# Gemini Packer
+.gemini_packer_cache.json
+gemini_files/

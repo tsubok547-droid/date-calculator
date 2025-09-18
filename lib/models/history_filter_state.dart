@@ -1,5 +1,3 @@
-// lib/models/history_filter_state.dart
-
 enum FilterLogic { and, or }
 
 class HistoryFilterState {

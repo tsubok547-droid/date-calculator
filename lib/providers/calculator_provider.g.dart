@@ -7,7 +7,7 @@ part of 'calculator_provider.dart';
 // **************************************************************************
 
 String _$calculatorNotifierHash() =>
-    r'5f0b82d728672cc766ecefffeeb71e71b89ec8c4';
+    r'b8b69ae8c83ab7695e3e4c15be04b27c97b0970f';
 
 /// See also [CalculatorNotifier].
 @ProviderFor(CalculatorNotifier)

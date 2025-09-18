@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/history_filter_state.dart';
+import '../../utils/constants.dart'; // 定数ファイルをインポート
 
 class HistoryFilterDialog extends StatefulWidget {
   final HistoryFilterState currentFilter;
@@ -36,8 +37,8 @@ class _HistoryFilterDialogState extends State<HistoryFilterDialog> {
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      firstDate: AppConstants.minDate, // 定数を使用
+      lastDate: AppConstants.maxDate,  // 定数を使用
     );
 
     if (picked != null) {

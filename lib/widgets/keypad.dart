@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
+import '../utils/constants.dart'; // 定数ファイルをインポート
 
 class Keypad extends StatelessWidget {
   final Function(String) onButtonPressed;
@@ -67,16 +68,16 @@ class Keypad extends StatelessWidget {
             _buildKeypadButton(context, '1'),
             _buildKeypadButton(context, '2'),
             _buildKeypadButton(context, '3'),
-            _buildKeypadButton(context, '←')
+            _buildKeypadButton(context, AppConstants.keyBackspace)
           ]),
         ),
         Expanded(
           flex: 4,
           child: Row(
             children: [
-              _buildKeypadButton(context, 'C'),
+              _buildKeypadButton(context, AppConstants.keyClear), // 定数を使用
               _buildKeypadButton(context, '0', flex: 2),
-              _buildKeypadButton(context, 'Ent'),
+              _buildKeypadButton(context, AppConstants.keyEnter), // 定数を使用
             ],
           ),
         ),

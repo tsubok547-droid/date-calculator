@@ -1,5 +1,3 @@
-// lib/models/calculation_state.dart
-
 enum ActiveField { standardDate, daysExpression, finalDate }
 
 class CalculationState {

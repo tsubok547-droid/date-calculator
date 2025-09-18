@@ -1,10 +1,10 @@
+// lib/providers/calculator_provider.dart
+
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:math_expressions/math_expressions.dart';
 import '../models/calculation_state.dart';
-import '../services/settings_service.dart'; // SettingsServiceをインポート
-import '../models/history_duplicate_policy.dart'; // enumをインポート
-import 'services_provider.dart';
+import 'repositories_provider.dart'; 
 
 part 'calculator_provider.g.dart';
 
@@ -19,19 +19,18 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return _calculateFinalDate(initialState);
   }
 
+  // ... (onNumberPressed から _calculateDaysFromFinalDate までのメソッドは変更なし) ...
+  
   void onNumberPressed(String number) {
     if (state.activeField != ActiveField.daysExpression) return;
-    
     final newExpression = (state.daysExpression == '0')
         ? number
         : state.daysExpression + number;
-    
     state = _calculateFinalDate(state.copyWith(daysExpression: newExpression));
   }
 
   void onOperatorPressed(String operator) {
     if (state.activeField != ActiveField.daysExpression) return;
-
     final lastChar = state.daysExpression.substring(state.daysExpression.length - 1);
     String newExpression;
     if ("+-".contains(lastChar)) {
@@ -44,11 +43,9 @@ class CalculatorNotifier extends _$CalculatorNotifier {
 
   void onBackspacePressed() {
     if (state.activeField != ActiveField.daysExpression) return;
-    
     final newExpression = (state.daysExpression.length > 1)
         ? state.daysExpression.substring(0, state.daysExpression.length - 1)
         : '0';
-
     state = _calculateFinalDate(state.copyWith(daysExpression: newExpression));
   }
 
@@ -64,7 +61,6 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     final newExpression = (state.daysExpression == '0')
       ? days.toString()
       : "${state.daysExpression}+$days";
-
     state = _calculateFinalDate(state.copyWith(
       daysExpression: newExpression,
       activeField: ActiveField.daysExpression,
@@ -115,7 +111,6 @@ class CalculatorNotifier extends _$CalculatorNotifier {
       final expression = ShuntingYardParser().parse(finalExpression);
       final evaluator = RealEvaluator(ContextModel());
       final days = evaluator.evaluate(expression).toInt();
-
       final finalDate = currentState.standardDate.add(Duration(days: days));
       return currentState.copyWith(finalDate: finalDate);
     } catch (e) {
@@ -130,47 +125,10 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     }
     return currentState;
   }
-  
-Future<void> saveHistory() async {
-  if (state.finalDate == null) return;
-  
-  final settingsService = ref.read(settingsServiceProvider);
-  List<CalculationState> history = settingsService.getHistory();
-  
-  // --- ▼▼▼ ここからが修正箇所 ▼▼▼ ---
-
-  // 1. 保存されているポリシー設定を取得
-  final policy = settingsService.getHistoryDuplicatePolicy();
-
-  // 2. ポリシーに応じて重複チェックのロジックを分岐
-  switch (policy) {
-    case HistoryDuplicatePolicy.keepAll:
-      // 何もせず、常に新しい履歴を追加する
-      break;
-    case HistoryDuplicatePolicy.removeSameComment:
-      // コメントが同じ古い履歴を削除 (これまでの挙動)
-      if (state.comment != null && state.comment!.isNotEmpty) {
-        history.removeWhere((item) => item.comment == state.comment);
-      }
-      break;
-    case HistoryDuplicatePolicy.removeSameCalculation:
-      // コメント、基準日、日数表現がすべて一致する古い履歴を削除
-      history.removeWhere((item) =>
-        item.comment == state.comment &&
-        item.standardDate == state.standardDate &&
-        item.daysExpression == state.daysExpression
-      );
-      break;
-  }
-  
-  // --- ▲▲▲ ここまでが修正箇所 ▲▲▲ ---
-  
-  history.insert(0, state);
-  
-  if (history.length > SettingsService.calculationHistoryLimit) {
-    history.removeLast();
-  }
-  
-  await settingsService.saveHistory(history);
+ 
+  /// 現在の計算状態を履歴に保存する
+  Future<void> saveCurrentStateToHistory() async {
+    // `historyRepositoryProvider` を介して、新しく作成したリポジトリの `save` メソッドを呼び出す
+    await ref.read(historyRepositoryProvider).save(state);
   }
 }

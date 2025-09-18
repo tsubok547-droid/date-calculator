@@ -1,5 +1,3 @@
-// lib/models/history_duplicate_policy.dart
-
 enum HistoryDuplicatePolicy {
   /// コメントが同じ場合、古い履歴を削除する (現在の挙動)
   removeSameComment,

@@ -2,17 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/calculation_state.dart';
-import '../utils/constants.dart';
-// --- ▼▼▼ 新しいファイルをインポート ▼▼▼ ---
+import '../utils/constants.dart'; // 定数ファイルをインポート
 import '../models/history_duplicate_policy.dart';
-// --- ▲▲▲ ここまで ▲▲▲ ---
 
 class SettingsService {
   late final SharedPreferences _prefs;
 
   static const List<int> defaultShortcuts = [7, 14, 28, 56, 84, 91];
-  static const int searchHistoryLimit = 30;
-  static const int calculationHistoryLimit = 500;
+  //static const int searchHistoryLimit = 30;
+  //static const int calculationHistoryLimit = 500;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -115,7 +113,7 @@ class SettingsService {
     history.removeWhere((item) => item.toLowerCase() == term.toLowerCase());
     history.insert(0, term);
 
-    if (history.length > searchHistoryLimit) {
+    if (history.length > AppConstants.searchHistoryLimit) { // 定数を使用
       history.removeLast();
     }
     

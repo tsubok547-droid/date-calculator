@@ -7,6 +7,7 @@ import '../providers/calculator_provider.dart';
 import '../providers/services_provider.dart';
 import '../services/calendar_service.dart';
 import '../services/history_service.dart';
+import '../utils/constants.dart';
 import '../widgets/calculator/action_buttons.dart';
 import '../widgets/calculator/calculator_app_bar.dart';
 import '../widgets/calculator/comment_display.dart';
@@ -39,9 +40,9 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
   void _onButtonPressed(String text) {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     switch (text) {
-      case 'Ent': _handleEnter(); break;
-      case 'C': notifier.onClearPressed(); break;
-      case '←': notifier.onBackspacePressed(); break;
+      case AppConstants.keyEnter: _handleEnter(); break;
+      case AppConstants.keyClear: notifier.onClearPressed(); break;
+      case AppConstants.keyBackspace: notifier.onBackspacePressed(); break;
       case '+':
       case '-': notifier.onOperatorPressed(text); break;
       default: notifier.onNumberPressed(text); break;
@@ -67,7 +68,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     }
 
     if (state.finalDate != null) {
-      await notifier.saveHistory();
+      await notifier.saveCurrentStateToHistory();
       
       final settingsService = ref.read(settingsServiceProvider);
       if (settingsService.shouldAddEventToCalendar()) {
@@ -123,7 +124,12 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     }
     
     final initialDate = (field == ActiveField.standardDate) ? state.standardDate : (state.finalDate ?? DateTime.now());
-    final picked = await showDatePicker(context: context, initialDate: initialDate, firstDate: DateTime(1926), lastDate: DateTime(2101));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: AppConstants.minDate,
+      lastDate: AppConstants.maxDate,
+    );
     
     if (!mounted || picked == null) return;
 
@@ -221,13 +227,11 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     await settingsService.saveHistory(importedHistory);
     ref.invalidate(settingsServiceProvider);
     
-    // --- ▼▼▼ [修正] mounted チェックを追加 ▼▼▼ ---
     if (!mounted) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${importedHistory.length}件の履歴をインポートしました。')),
     );
-    // --- ▲▲▲ ここまで ▲▲▲ ---
   }
 
   @override

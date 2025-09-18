@@ -4,22 +4,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/calculation_state.dart';
+import '../utils/string_sanitizer.dart'; // 共通ユーティリティをインポート
 
 class HistoryService {
   /// 履歴リストをCSVとしてエクスポート（共有）する
   Future<bool> exportHistory(List<CalculationState> history) async {
     try {
-      String sanitizeForCsv(String? input) {
-        if (input == null || input.isEmpty) return '';
-        final sanitizedInput = input;
-        if (sanitizedInput.startsWith('=') ||
-            sanitizedInput.startsWith('+') ||
-            sanitizedInput.startsWith('-') ||
-            sanitizedInput.startsWith('@')) {
-          return "'$sanitizedInput";
-        }
-        return sanitizedInput;
-      }
       final List<List<dynamic>> rows = [
         // ヘッダー行
         ['standardDate', 'daysExpression', 'finalDate', 'comment']
@@ -28,9 +18,9 @@ class HistoryService {
       for (final state in history) {
         rows.add([
           state.standardDate.toIso8601String(),
-          sanitizeForCsv(state.daysExpression), 
+          sanitizeForCsv(state.daysExpression), // 共通関数を呼び出し
           state.finalDate?.toIso8601String() ?? '',
-          sanitizeForCsv(state.comment) 
+          sanitizeForCsv(state.comment) // 共通関数を呼び出し
         ]);
       }
 
