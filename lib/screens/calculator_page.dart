@@ -15,6 +15,7 @@ import '../widgets/calculator/display_fields.dart';
 import '../widgets/keypad.dart';
 import 'history_page.dart';
 import '../widgets/comment_edit_dialog.dart';
+import '../helpers/show_app_snack_bar.dart';
 
 class CalculatorPage extends ConsumerStatefulWidget {
   final bool isJapaneseCalendar;
@@ -192,9 +193,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     final currentHistory = settingsService.getHistory();
 
     if (currentHistory.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('エクスポートする履歴がありません。')),
-      );
+      showAppSnackBar(context, 'エクスポートする履歴がありません。');
       return;
     }
 
@@ -203,13 +202,9 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('履歴を共有しました。')),
-      );
+      showAppSnackBar(context, '履歴を共有しました。');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('エクスポートに失敗しました。')),
-      );
+      showAppSnackBar(context, 'エクスポートに失敗しました。');
     }
   }
   
@@ -219,9 +214,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     if (!mounted) return;
 
     if (importedHistory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('インポートがキャンセルされたか、ファイルの読み込みに失敗しました。')),
-      );
+      showAppSnackBar(context, 'インポートがキャンセルされたか、ファイルの読み込みに失敗しました。');
       return;
     }
 
@@ -245,9 +238,7 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     
     if (!mounted) return;
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${importedHistory.length}件の履歴をインポートしました。')),
-    );
+    showAppSnackBar(context, '${importedHistory.length}件の履歴をインポートしました。');
   }
 
   @override

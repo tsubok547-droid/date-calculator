@@ -9,6 +9,7 @@ import '../providers/history_provider.dart';
 import '../utils/date_formatter.dart';
 import '../widgets/comment_edit_dialog.dart';
 import '../widgets/history/history_filter_dialog.dart';
+import '../helpers/show_app_snack_bar.dart';
 
 part 'history_page.g.dart';
 
@@ -197,9 +198,7 @@ class HistoryPage extends ConsumerWidget {
               ),
               onDismissed: (direction) {
                 ref.read(historyNotifierProvider.notifier).remove(state);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('「${state.comment ?? 'コメントなし'}」を削除しました')),
-                );
+                showAppSnackBar(context, '「${state.comment ?? 'コメントなし'}」を削除しました');
               },
               child: _buildHistoryTile(
                 context,

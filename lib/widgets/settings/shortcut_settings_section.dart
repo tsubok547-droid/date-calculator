@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/services_provider.dart';
 import '../../services/settings_service.dart';
+import '../../helpers/show_app_snack_bar.dart';
 
 class ShortcutSettingsSection extends ConsumerStatefulWidget {
   const ShortcutSettingsSection({super.key});
@@ -85,9 +86,7 @@ class _ShortcutSettingsSectionState extends ConsumerState<ShortcutSettingsSectio
     ref.invalidate(settingsServiceProvider);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ショートカットをデフォルトに戻しました。')),
-      );
+      showAppSnackBar(context, 'ショートカットをデフォルトに戻しました。');
     }
   }
 
