@@ -11,8 +11,10 @@ class CalendarService {
     final String finalTitle = '$sanitizedComment最終日';
 
     final DateTime finalDate = state.finalDate!;
-    final DateTime startTime = DateTime(finalDate.year, finalDate.month, finalDate.day, 9);
-    final DateTime endTime = DateTime(finalDate.year, finalDate.month, finalDate.day, 10);
+    // 日本の午前9時がUTCで何時になるかを計算して設定します (JSTはUTC+9時間なので、9-9=0)
+    final DateTime startTime = DateTime.utc(finalDate.year, finalDate.month, finalDate.day, 0);
+    // 同様に、日本の午前10時はUTCの午前1時です (10-9=1)
+    final DateTime endTime = DateTime.utc(finalDate.year, finalDate.month, finalDate.day, 1);
 
     final Event event = Event(
       title: finalTitle,
