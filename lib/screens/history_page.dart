@@ -1,7 +1,8 @@
+// lib/screens/history_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
 import '../models/calculation_state.dart';
 import '../models/history_filter_state.dart';
 import '../providers/history_filter_provider.dart';
@@ -24,62 +25,9 @@ bool isFilterActive(Ref ref) {
       filter.finalDateEnd != null;
 }
 
-/// フィルターされた履歴リストを提供するProvider
-@riverpod
-List<CalculationState> filteredHistory(Ref ref) {
-  // 元となる全履歴リストを監視
-  final fullHistory = ref.watch(historyNotifierProvider);
-  // フィルター条件を監視
-  final filter = ref.watch(historyFilterNotifierProvider);
-  // フィルターがアクティブでなければ全履歴をそのまま返す
-  if (!ref.watch(isFilterActiveProvider)) {
-    return fullHistory;
-  }
-
-  return fullHistory.where((item) {
-    final conditions = <bool>[];
-
-    // コメント
-    if (filter.comment != null && filter.comment!.isNotEmpty) {
-      conditions
-          .add(item.comment?.toLowerCase().contains(filter.comment!.toLowerCase()) ?? false);
-    }
-    // 基準日
-    if (filter.standardDateStart != null || filter.standardDateEnd != null) {
-      bool isInRange = true;
-      if (filter.standardDateStart != null &&
-          item.standardDate.isBefore(filter.standardDateStart!)) {
-        isInRange = false;
-      }
-      if (filter.standardDateEnd != null &&
-          item.standardDate.isAfter(filter.standardDateEnd!.add(const Duration(days: 1)))) {
-        isInRange = false;
-      }
-      conditions.add(isInRange);
-    }
-    // 最終日
-    if (filter.finalDateStart != null || filter.finalDateEnd != null) {
-      if (item.finalDate == null) {
-        conditions.add(false);
-      } else {
-        bool isInRange = true;
-        if (filter.finalDateStart != null &&
-            item.finalDate!.isBefore(filter.finalDateStart!)) {
-          isInRange = false;
-        }
-        if (filter.finalDateEnd != null &&
-            item.finalDate!.isAfter(filter.finalDateEnd!.add(const Duration(days: 1)))) {
-          isInRange = false;
-        }
-        conditions.add(isInRange);
-      }
-    }
-
-    if (conditions.isEmpty) return true;
-    if (filter.logic == FilterLogic.and) return conditions.every((c) => c);
-    return conditions.any((c) => c);
-  }).toList();
-}
+// ▼▼▼ filteredHistoryProviderはここで廃止します ▼▼▼
+// @riverpod
+// List<CalculationState> filteredHistory(Ref ref) { ... }
 
 class HistoryPage extends ConsumerWidget {
   final bool isJapaneseCalendar;
@@ -140,15 +88,16 @@ class HistoryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFilterActive = ref.watch(isFilterActiveProvider);
-    final fullHistory = ref.watch(historyNotifierProvider);
-    final displayedHistory = ref.watch(filteredHistoryProvider);
+    // ▼▼▼ 大元となる非同期の履歴データプロバイダーを直接監視する ▼▼▼
+    final asyncFullHistory = ref.watch(historyNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('計算履歴'),
         actions: [
           IconButton(
-            icon: Icon(isFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined),
+            icon: Icon(
+                isFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined),
             tooltip: 'フィルター',
             onPressed: () => _showFilterDialog(context, ref),
           ),
@@ -156,64 +105,130 @@ class HistoryPage extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.filter_alt_off_outlined),
               tooltip: 'フィルターをリセット',
-              onPressed: ref.read(historyFilterNotifierProvider.notifier).resetFilter,
+              onPressed:
+                  ref.read(historyFilterNotifierProvider.notifier).resetFilter,
             ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: '履歴をクリア',
-            onPressed: fullHistory.isEmpty
+            onPressed: (asyncFullHistory.valueOrNull?.isEmpty ?? true)
                 ? null
                 : () => _showClearHistoryDialog(context, ref),
           ),
         ],
       ),
-      body: () {
-        if (isFilterActive && displayedHistory.isEmpty) {
-          return Center(
-            child: Text('条件に合う履歴はありません。', style: Theme.of(context).textTheme.titleMedium),
-          );
-        }
-        if (fullHistory.isEmpty) {
-          return Center(
-            child: Text('計算履歴はありません。', style: Theme.of(context).textTheme.titleMedium),
-          );
-        }
-        return ReorderableListView.builder(
-          itemCount: displayedHistory.length,
-          onReorder: isFilterActive
-              ? (o, n) {}
-              : (oldIndex, newIndex) =>
-                  ref.read(historyNotifierProvider.notifier).reorder(oldIndex, newIndex),
-          itemBuilder: (context, index) {
-            final state = displayedHistory[index];
-            return Dismissible(
-              key: ValueKey(state.hashCode),
-              direction: DismissDirection.endToStart,
-              confirmDismiss: (_) => _confirmDismiss(context),
-              background: Container(
-                color: Colors.red.shade400,
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: const Icon(Icons.delete_forever, color: Colors.white),
-              ),
-              onDismissed: (direction) {
-                ref.read(historyNotifierProvider.notifier).remove(state);
-                showAppSnackBar(context, '「${state.comment ?? 'コメントなし'}」を削除しました');
-              },
-              child: _buildHistoryTile(
-                context,
-                ref,
-                state,
-                isFilterActive: isFilterActive,
-              ),
+      // ▼▼▼ `asyncFullHistory`に対して`.when`を使用する ▼▼▼
+      body: asyncFullHistory.when(
+        data: (fullHistory) {
+          // ▼▼▼ フィルタリングロジックをここに移動 ▼▼▼
+          final filter = ref.watch(historyFilterNotifierProvider);
+          final displayedHistory = isFilterActive
+              ? fullHistory.where((item) {
+                  final conditions = <bool>[];
+                  if (filter.comment != null && filter.comment!.isNotEmpty) {
+                    conditions.add(item.comment
+                            ?.toLowerCase()
+                            .contains(filter.comment!.toLowerCase()) ??
+                        false);
+                  }
+                  if (filter.standardDateStart != null ||
+                      filter.standardDateEnd != null) {
+                    bool isInRange = true;
+                    if (filter.standardDateStart != null &&
+                        item.standardDate
+                            .isBefore(filter.standardDateStart!)) {
+                      isInRange = false;
+                    }
+                    if (filter.standardDateEnd != null &&
+                        item.standardDate.isAfter(filter.standardDateEnd!
+                            .add(const Duration(days: 1)))) {
+                      isInRange = false;
+                    }
+                    conditions.add(isInRange);
+                  }
+                  if (filter.finalDateStart != null ||
+                      filter.finalDateEnd != null) {
+                    if (item.finalDate == null) {
+                      conditions.add(false);
+                    } else {
+                      bool isInRange = true;
+                      if (filter.finalDateStart != null &&
+                          item.finalDate!.isBefore(filter.finalDateStart!)) {
+                        isInRange = false;
+                      }
+                      if (filter.finalDateEnd != null &&
+                          item.finalDate!.isAfter(filter.finalDateEnd!
+                              .add(const Duration(days: 1)))) {
+                        isInRange = false;
+                      }
+                      conditions.add(isInRange);
+                    }
+                  }
+                  if (conditions.isEmpty) {
+                    return true;
+                  }
+                  if (filter.logic == FilterLogic.and){
+                    return conditions.every((c) => c);
+                  } else {
+                    return conditions.any((c) => c);
+                  }
+                }).toList()
+              : fullHistory;
+
+          if (isFilterActive && displayedHistory.isEmpty) {
+            return Center(
+              child: Text('条件に合う履歴はありません。',
+                  style: Theme.of(context).textTheme.titleMedium),
             );
-          },
-        );
-      }(),
+          }
+          if (fullHistory.isEmpty) {
+            return Center(
+              child: Text('計算履歴はありません。',
+                  style: Theme.of(context).textTheme.titleMedium),
+            );
+          }
+          return ReorderableListView.builder(
+            itemCount: displayedHistory.length,
+            onReorder: isFilterActive
+                ? (o, n) {}
+                : (oldIndex, newIndex) => ref
+                    .read(historyNotifierProvider.notifier)
+                    .reorder(oldIndex, newIndex),
+            itemBuilder: (context, index) {
+              final state = displayedHistory[index];
+              return Dismissible(
+                key: ValueKey(state.hashCode),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) => _confirmDismiss(context),
+                background: Container(
+                  color: Colors.red.shade400,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: const Icon(Icons.delete_forever, color: Colors.white),
+                ),
+                onDismissed: (direction) {
+                  ref.read(historyNotifierProvider.notifier).remove(state);
+                  showAppSnackBar(
+                      context, '「${state.comment ?? 'コメントなし'}」を削除しました');
+                },
+                child: _buildHistoryTile(
+                  context,
+                  ref,
+                  state,
+                  isFilterActive: isFilterActive,
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('エラーが発生しました: $err')),
+      ),
     );
   }
 
   Future<bool?> _confirmDismiss(BuildContext context) {
+    // (このメソッド以下の部分は変更ありません)
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -249,8 +264,8 @@ class HistoryPage extends ConsumerWidget {
       isJapanese: isJapaneseCalendar,
       style: DateFormatStyle.compact,
     );
-    final expressionStr =
-        state.daysExpression.replaceAllMapped(RegExp(r'([+\-])'), (match) => ' ${match.group(1)} ');
+    final expressionStr = state.daysExpression
+        .replaceAllMapped(RegExp(r'([+\-])'), (match) => ' ${match.group(1)} ');
 
     return ListTile(
       leading: isFilterActive ? null : const Icon(Icons.drag_handle),
@@ -273,7 +288,9 @@ class HistoryPage extends ConsumerWidget {
                 currentComment: state.comment,
               );
               if (newComment != null && newComment != state.comment) {
-                ref.read(historyNotifierProvider.notifier).updateComment(state, newComment);
+                ref
+                    .read(historyNotifierProvider.notifier)
+                    .updateComment(state, newComment);
               }
             },
           ),

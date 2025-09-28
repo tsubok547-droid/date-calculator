@@ -19,20 +19,24 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     return _calculateFinalDate(initialState);
   }
 
+  // --- (大部分のメソッドは変更ありません) ---
+
   void onNumberPressed(String number) {
     if (state.activeField != ActiveField.daysExpression) return;
-    final newExpression = (state.daysExpression == '0')
-        ? number
-        : state.daysExpression + number;
+    final newExpression =
+        (state.daysExpression == '0') ? number : state.daysExpression + number;
     state = _calculateFinalDate(state.copyWith(daysExpression: newExpression));
   }
 
   void onOperatorPressed(String operator) {
     if (state.activeField != ActiveField.daysExpression) return;
-    final lastChar = state.daysExpression.substring(state.daysExpression.length - 1);
+    final lastChar =
+        state.daysExpression.substring(state.daysExpression.length - 1);
     String newExpression;
     if ("+-".contains(lastChar)) {
-      newExpression = state.daysExpression.substring(0, state.daysExpression.length - 1) + operator;
+      newExpression =
+          state.daysExpression.substring(0, state.daysExpression.length - 1) +
+              operator;
     } else {
       newExpression = state.daysExpression + operator;
     }
@@ -57,14 +61,14 @@ class CalculatorNotifier extends _$CalculatorNotifier {
 
   void onShortcutPressed(int days) {
     final newExpression = (state.daysExpression == '0')
-      ? days.toString()
-      : "${state.daysExpression}+$days";
+        ? days.toString()
+        : "${state.daysExpression}+$days";
     state = _calculateFinalDate(state.copyWith(
       daysExpression: newExpression,
       activeField: ActiveField.daysExpression,
     ));
   }
-  
+
   void resetToToday() {
     state = _recalculate(state.copyWith(standardDate: DateTime.now()));
   }
@@ -74,13 +78,15 @@ class CalculatorNotifier extends _$CalculatorNotifier {
   }
 
   void updateStandardDate(DateTime date) {
-    state = _recalculate(state.copyWith(standardDate: date, activeField: ActiveField.standardDate));
+    state = _recalculate(
+        state.copyWith(standardDate: date, activeField: ActiveField.standardDate));
   }
 
   void updateFinalDate(DateTime date) {
-    state = _recalculate(state.copyWith(finalDate: date, activeField: ActiveField.finalDate));
+    state = _recalculate(
+        state.copyWith(finalDate: date, activeField: ActiveField.finalDate));
   }
-  
+
   void updateComment(String? comment) {
     state = state.copyWith(comment: comment);
   }
@@ -88,12 +94,9 @@ class CalculatorNotifier extends _$CalculatorNotifier {
   void restoreFromHistory(CalculationState historyState) {
     state = historyState;
   }
-  
-  /// 【新規】計算を確定させ、最終日フィールドにフォーカスを移動する
+
   void settleCalculationAndFocusFinalDate() {
-    // 既存の「最終日から日数を逆算する」ロジックを呼び出す
     final settledState = _calculateDaysFromFinalDate(state);
-    // フォーカスを最終日にセットして状態を更新する
     state = settledState.copyWith(activeField: ActiveField.finalDate);
   }
 
@@ -108,12 +111,13 @@ class CalculatorNotifier extends _$CalculatorNotifier {
     try {
       String finalExpression = currentState.daysExpression;
       if (finalExpression.endsWith('+') || finalExpression.endsWith('-')) {
-        finalExpression = finalExpression.substring(0, finalExpression.length - 1);
+        finalExpression =
+            finalExpression.substring(0, finalExpression.length - 1);
       }
       if (finalExpression.isEmpty) {
         return currentState.copyWith(forceFinalDateNull: true);
       }
-      
+
       final expression = ShuntingYardParser().parse(finalExpression);
       final evaluator = RealEvaluator(ContextModel());
       final days = evaluator.evaluate(expression).toInt();
@@ -126,13 +130,19 @@ class CalculatorNotifier extends _$CalculatorNotifier {
 
   CalculationState _calculateDaysFromFinalDate(CalculationState currentState) {
     if (currentState.finalDate != null) {
-      final daysDifference = currentState.finalDate!.difference(currentState.standardDate).inDays;
+      final daysDifference =
+          currentState.finalDate!.difference(currentState.standardDate).inDays;
       return currentState.copyWith(daysExpression: daysDifference.toString());
     }
     return currentState;
   }
- 
+
   Future<void> saveCurrentStateToHistory() async {
-    await ref.read(historyRepositoryProvider).save(state);
+    // ▼▼▼ ここを修正 ▼▼▼
+    // .future をawaitすることで、FutureProviderから中身のインスタンスを正しく取り出す
+    final repository = await ref.read(historyRepositoryProvider.future);
+    // repositoryの正しいメソッド`.add()`を呼び出す
+    await repository.add(state);
+    // ▲▲▲ 修正はここまで ▲▲▲
   }
 }

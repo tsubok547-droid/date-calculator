@@ -1,27 +1,27 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'calculator_provider.dart';
+part of 'history_management_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$calculatorNotifierHash() =>
-    r'38d09b80c18f86f196f3f713ba5876af59bfc628';
+String _$historyManagementNotifierHash() =>
+    r'79d5f94908bb2cbb51e0dc9dca9ba58fb446396c';
 
-/// See also [CalculatorNotifier].
-@ProviderFor(CalculatorNotifier)
-final calculatorNotifierProvider =
-    AutoDisposeNotifierProvider<CalculatorNotifier, CalculationState>.internal(
-      CalculatorNotifier.new,
-      name: r'calculatorNotifierProvider',
+/// See also [HistoryManagementNotifier].
+@ProviderFor(HistoryManagementNotifier)
+final historyManagementNotifierProvider =
+    AutoDisposeNotifierProvider<HistoryManagementNotifier, void>.internal(
+      HistoryManagementNotifier.new,
+      name: r'historyManagementNotifierProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
           ? null
-          : _$calculatorNotifierHash,
+          : _$historyManagementNotifierHash,
       dependencies: null,
       allTransitiveDependencies: null,
     );
 
-typedef _$CalculatorNotifier = AutoDisposeNotifier<CalculationState>;
+typedef _$HistoryManagementNotifier = AutoDisposeNotifier<void>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

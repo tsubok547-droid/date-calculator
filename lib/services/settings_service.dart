@@ -1,16 +1,16 @@
-import 'dart:convert';
+// lib/services/settings_service.dart
+
+//import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/calculation_state.dart';
-import '../utils/constants.dart'; // 定数ファイルをインポート
+//import '../models/calculation_state.dart';
+import '../utils/constants.dart';
 import '../models/history_duplicate_policy.dart';
 
 class SettingsService {
   late final SharedPreferences _prefs;
 
   static const List<int> defaultShortcuts = [7, 14, 28, 56, 84, 91];
-  //static const int searchHistoryLimit = 30;
-  //static const int calculationHistoryLimit = 500;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -18,12 +18,11 @@ class SettingsService {
 
   // --- テーマカラー ---
   Color getPrimaryColor() {
-    final colorValue = _prefs.getInt(PrefKeys.primaryColor) ?? 0xFF3F51B5; // Colors.indigo.value
+    final colorValue = _prefs.getInt(PrefKeys.primaryColor) ?? 0xFF3F51B5;
     return Color(colorValue);
   }
 
   Future<void> setPrimaryColor(Color color) async {
-    // ignore: deprecated_member_use
     await _prefs.setInt(PrefKeys.primaryColor, color.value);
   }
 
@@ -45,42 +44,25 @@ class SettingsService {
     await _prefs.setBool(PrefKeys.addEventToCalendar, isEnabled);
   }
 
-  // --- ▼▼▼ 履歴重複削除ポリシーの取得・設定を追加 ▼▼▼ ---
+  // --- 履歴重複削除ポリシー ---
   HistoryDuplicatePolicy getHistoryDuplicatePolicy() {
-    final policyString = _prefs.getString(PrefKeys.historyDuplicatePolicy) ?? HistoryDuplicatePolicy.removeSameComment.name; // デフォルトはコメントが同じなら削除
+    final policyString = _prefs.getString(PrefKeys.historyDuplicatePolicy) ??
+        HistoryDuplicatePolicy.removeSameComment.name;
     return HistoryDuplicatePolicy.values.firstWhere(
       (e) => e.name == policyString,
-      orElse: () => HistoryDuplicatePolicy.removeSameComment, // 見つからない場合はデフォルト
+      orElse: () => HistoryDuplicatePolicy.removeSameComment,
     );
   }
 
   Future<void> setHistoryDuplicatePolicy(HistoryDuplicatePolicy policy) async {
     await _prefs.setString(PrefKeys.historyDuplicatePolicy, policy.name);
   }
-  // --- ▲▲▲ ここまで ▲▲▲ ---
 
-  // --- 計算履歴 ---
-  List<CalculationState> getHistory() {
-    final historyJson = _prefs.getStringList(PrefKeys.calcHistory) ?? [];
-    try {
-      return historyJson
-          .map((json) => CalculationState.fromJson(jsonDecode(json)))
-          .toList();
-    } catch (e) {
-      _prefs.remove(PrefKeys.calcHistory);
-      return [];
-    }
-  }
-
-  Future<void> saveHistory(List<CalculationState> history) async {
-    List<String> historyJson =
-        history.map((state) => jsonEncode(state.toJson())).toList();
-    await _prefs.setStringList(PrefKeys.calcHistory, historyJson);
-  }
-  
-  Future<void> clearHistory() async {
-    await _prefs.remove(PrefKeys.calcHistory);
-  }
+  // ▼▼▼ 計算履歴に関するメソッドはここからHistoryRepositoryへ移動 ▼▼▼
+  // getHistory()
+  // saveHistory()
+  // clearHistory()
+  // ▲▲▲ ここまで ▲▲▲
 
   // --- ショートカット設定 ---
   List<int> getShortcutValues() {
@@ -107,16 +89,12 @@ class SettingsService {
 
   Future<void> addSearchTerm(String term) async {
     if (term.isEmpty) return;
-    
     List<String> history = getSearchHistory();
-
     history.removeWhere((item) => item.toLowerCase() == term.toLowerCase());
     history.insert(0, term);
-
-    if (history.length > AppConstants.searchHistoryLimit) { // 定数を使用
+    if (history.length > AppConstants.searchHistoryLimit) {
       history.removeLast();
     }
-    
     await _prefs.setStringList(PrefKeys.searchHistory, history);
   }
 }
