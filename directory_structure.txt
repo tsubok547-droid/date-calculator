@@ -11,13 +11,17 @@ date_calc/
 │   │   │       └── AndroidManifest.xml
 │   │   └── build.gradle.kts
 │   ├── build.gradle.kts
-│   └── gradle.properties
+│   └── settings.gradle.kts
 ├── lib/
 │   ├── controllers/
 │   │   ├── calculator_page_controller.dart
 │   │   ├── calculator_page_controller.g.dart
 │   │   ├── history_page_controller.dart
 │   │   └── history_page_controller.g.dart
+│   ├── data/
+│   │   ├── data_migrator.dart
+│   │   ├── database.dart
+│   │   └── database.g.dart
 │   ├── helpers/
 │   │   ├── show_app_snack_bar.dart
 │   │   └── show_calendar_prompt.dart
@@ -70,6 +74,7 @@ date_calc/
 │   │   └── keypad.dart
 │   ├── app.dart
 │   └── main.dart
+├── directory_structure.txt
 ├── Privacy_Policy.md
 ├── pubspec.yaml
 └── README.md
