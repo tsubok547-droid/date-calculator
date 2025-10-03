@@ -1,23 +1,16 @@
-// lib/screens/calculator_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+
+import '../controllers/calculator_page_controller.dart';
 import '../models/calculation_state.dart';
 import '../providers/calculator_provider.dart';
-import '../providers/history_management_provider.dart'; // 新しくインポート
 import '../providers/services_provider.dart';
-import '../services/calendar_service.dart';
 import '../utils/constants.dart';
 import '../widgets/calculator/action_buttons.dart';
 import '../widgets/calculator/calculator_app_bar.dart';
 import '../widgets/calculator/comment_display.dart';
 import '../widgets/calculator/display_fields.dart';
 import '../widgets/keypad.dart';
-import 'history_page.dart';
-import '../widgets/comment_edit_dialog.dart';
-import '../helpers/show_app_snack_bar.dart';
-import '../helpers/show_calendar_prompt.dart';
 
 class CalculatorPage extends ConsumerStatefulWidget {
   final bool isJapaneseCalendar;
@@ -34,208 +27,35 @@ class CalculatorPage extends ConsumerStatefulWidget {
 }
 
 class _CalculatorPageState extends ConsumerState<CalculatorPage> {
+  // UIの状態（ハイライトアニメーション）のみを管理
   bool _isFinalDateHighlighted = false;
   bool _isDaysExpressionHighlighted = false;
 
-  final _calendarService = CalendarService();
-
+  /// キーパッドからの入力をControllerに渡す
   void _onButtonPressed(String text) {
-    final notifier = ref.read(calculatorNotifierProvider.notifier);
-    switch (text) {
-      case AppConstants.keyEnter:
-        _handleEnter();
-        break;
-      case AppConstants.keyClear:
-        notifier.onClearPressed();
-        break;
-      case AppConstants.keyBackspace:
-        notifier.onBackspacePressed();
-        break;
-      case '+':
-      case '-':
-        notifier.onOperatorPressed(text);
-        break;
-      default:
-        notifier.onNumberPressed(text);
-        break;
+    if (text == AppConstants.keyEnter) {
+      _handleEnter();
+    } else {
+      ref.read(calculatorPageControllerProvider.notifier).onButtonPressed(text);
     }
   }
 
+  /// Enterキーの処理。ロジックはControllerに委譲し、UIアニメーションのみ実行
   Future<void> _handleEnter() async {
-    final notifier = ref.read(calculatorNotifierProvider.notifier);
-    final state = ref.read(calculatorNotifierProvider);
+    final fieldToHighlight = await ref.read(calculatorPageControllerProvider.notifier).handleEnter(context);
 
-    if (state.activeField == ActiveField.daysExpression) {
-      if (state.finalDate != null) {
-        setState(() => _isFinalDateHighlighted = true);
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) setState(() => _isFinalDateHighlighted = false);
-        });
-      }
-    } else if (state.activeField == ActiveField.finalDate) {
+    if (!mounted || fieldToHighlight == null) return;
+
+    if (fieldToHighlight == ActiveField.finalDate) {
+      setState(() => _isFinalDateHighlighted = true);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) setState(() => _isFinalDateHighlighted = false);
+      });
+    } else if (fieldToHighlight == ActiveField.daysExpression) {
       setState(() => _isDaysExpressionHighlighted = true);
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) setState(() => _isDaysExpressionHighlighted = false);
       });
-    }
-
-    if (state.finalDate != null) {
-      await notifier.saveCurrentStateToHistory();
-
-      final settingsService = ref.read(settingsServiceProvider);
-      if (settingsService.shouldAddEventToCalendar()) {
-        await _promptAddEventToCalendar(state);
-      }
-    }
-  }
-
-  Future<void> _editComment() async {
-    final notifier = ref.read(calculatorNotifierProvider.notifier);
-    final currentComment = ref.read(calculatorNotifierProvider).comment;
-
-    final newComment = await showCommentEditDialog(
-      context,
-      currentComment: currentComment,
-    );
-
-    if (!mounted || newComment == null) return;
-
-    notifier.updateComment(newComment.isEmpty ? null : newComment);
-  }
-
-  Future<void> _promptAddEventToCalendar(CalculationState state) async {
-    if (state.finalDate == null) return;
-
-    final String title =
-        (state.comment?.isNotEmpty ?? false) ? state.comment! : '計算結果の日付';
-    final DateTime startTime = state.finalDate!;
-
-    final bool? add = await showCalendarPrompt(
-      context,
-      title: title,
-      startTime: startTime,
-    );
-
-    if (!mounted || !(add ?? false)) return;
-
-    await _calendarService.addEventToCalendar(state);
-  }
-
-  Future<void> _selectDate(ActiveField field) async {
-    final notifier = ref.read(calculatorNotifierProvider.notifier);
-    final state = ref.read(calculatorNotifierProvider);
-
-    if (field == ActiveField.daysExpression) {
-      notifier.setActiveField(ActiveField.daysExpression);
-      return;
-    }
-
-    if (field == ActiveField.finalDate) {
-      if (state.activeField == ActiveField.finalDate) {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: state.finalDate ?? DateTime.now(),
-          firstDate: AppConstants.minDate,
-          lastDate: AppConstants.maxDate,
-        );
-        if (mounted && picked != null) {
-          notifier.updateFinalDate(picked);
-        }
-      } else {
-        notifier.settleCalculationAndFocusFinalDate();
-      }
-      return;
-    }
-
-    if (field == ActiveField.standardDate) {
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: state.standardDate,
-        firstDate: AppConstants.minDate,
-        lastDate: AppConstants.maxDate,
-      );
-      if (mounted && picked != null) {
-        notifier.updateStandardDate(picked);
-      }
-    }
-  }
-
-  void _navigateToHistory() async {
-    final notifier = ref.read(calculatorNotifierProvider.notifier);
-    final navigator = Navigator.of(context);
-
-    final result = await navigator.push(
-      MaterialPageRoute(
-        builder: (context) => HistoryPage(
-          isJapaneseCalendar: widget.isJapaneseCalendar,
-        ),
-      ),
-    );
-
-    if (!mounted) return;
-
-    if (result is CalculationState) {
-      notifier.restoreFromHistory(result);
-    }
-  }
-
-  void _showVersionInfo() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-
-    if (!mounted) return;
-
-    showAboutDialog(
-        context: context,
-        applicationName: 'くすりの日数計算機',
-        applicationVersion: packageInfo.version,
-        applicationLegalese: '© 2025 t-BocSoft');
-  }
-
-  /// エクスポート処理を新しいNotifierに委譲
-  Future<void> _onExportHistory() async {
-    final message = await ref
-        .read(historyManagementNotifierProvider.notifier)
-        .exportHistory();
-
-    if (mounted) {
-      showAppSnackBar(context, message);
-    }
-  }
-
-  /// インポート処理を新しいNotifierに委譲
-  Future<void> _onImportHistory() async {
-    final notifier = ref.read(historyManagementNotifierProvider.notifier);
-    final importedHistory = await notifier.getImportedHistoryData();
-
-    if (!mounted) return;
-
-    if (importedHistory == null) {
-      showAppSnackBar(context, 'インポートがキャンセルされたか、ファイルの読み込みに失敗しました。');
-      return;
-    }
-
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('履歴のインポート'),
-        content: const Text('現在の履歴はすべて上書きされます。よろしいですか？'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('インポート')),
-        ],
-      ),
-    );
-
-    if (!mounted || !(confirmed ?? false)) return;
-
-    await notifier.saveImportedHistory(importedHistory);
-
-    if (mounted) {
-      showAppSnackBar(context, '${importedHistory.length}件の履歴をインポートしました。');
     }
   }
 
@@ -244,13 +64,16 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
     final calculationState = ref.watch(calculatorNotifierProvider);
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final settingsService = ref.watch(settingsServiceProvider);
+    
+    // Controllerへの参照
+    final controller = ref.read(calculatorPageControllerProvider.notifier);
 
     return Scaffold(
       appBar: CalculatorAppBar(
-        onNavigateToHistory: _navigateToHistory,
-        onShowVersionInfo: _showVersionInfo,
-        onExportHistory: _onExportHistory,
-        onImportHistory: _onImportHistory,
+        onNavigateToHistory: () => controller.navigateToHistory(context, isJapaneseCalendar: widget.isJapaneseCalendar),
+        onShowVersionInfo: () => controller.showVersionInfo(context),
+        onExportHistory: () => controller.exportHistory(context),
+        onImportHistory: () => controller.importHistory(context),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -263,13 +86,15 @@ class _CalculatorPageState extends ConsumerState<CalculatorPage> {
             ),
             const SizedBox(height: 8),
             CommentDisplay(
-                comment: calculationState.comment, onEditComment: _editComment),
+              comment: calculationState.comment,
+              onEditComment: () => controller.editComment(context),
+            ),
             DisplayFields(
               calculationState: calculationState,
               isJapaneseCalendar: widget.isJapaneseCalendar,
               isDaysExpressionHighlighted: _isDaysExpressionHighlighted,
               isFinalDateHighlighted: _isFinalDateHighlighted,
-              onSelectDate: _selectDate,
+              onSelectDate: (field) => controller.selectDate(context, field),
             ),
             const SizedBox(height: 8),
             Expanded(

@@ -1,9 +1,7 @@
 // lib/services/settings_service.dart
 
-//import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-//import '../models/calculation_state.dart';
 import '../utils/constants.dart';
 import '../models/history_duplicate_policy.dart';
 
@@ -23,6 +21,7 @@ class SettingsService {
   }
 
   Future<void> setPrimaryColor(Color color) async {
+    // ignore: deprecated_member_use
     await _prefs.setInt(PrefKeys.primaryColor, color.value);
   }
 

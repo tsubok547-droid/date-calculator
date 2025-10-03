@@ -1,0 +1,68 @@
+date_calc/
+├── android/
+│   ├── app/
+│   │   ├── src/
+│   │   │   └── main/
+│   │   │       ├── kotlin/
+│   │   │       │   └── com/
+│   │   │       │       └── tbocsoft/
+│   │   │       │           └── kusurinonisuukeisanki/
+│   │   │       │               └── MainActivity.kt
+│   │   │       └── AndroidManifest.xml
+│   │   └── build.gradle.kts
+│   ├── build.gradle.kts
+│   └── gradle.properties
+├── lib/
+│   ├── helpers/
+│   │   ├── show_app_snack_bar.dart
+│   │   └── show_calendar_prompt.dart
+│   ├── models/
+│   │   ├── calculation_state.dart
+│   │   ├── history_duplicate_policy.dart
+│   │   └── history_filter_state.dart
+│   ├── providers/
+│   │   ├── calculator_provider.dart
+│   │   ├── calculator_provider.g.dart
+│   │   ├── history_filter_provider.dart
+│   │   ├── history_filter_provider.g.dart
+│   │   ├── history_management_provider.dart
+│   │   ├── history_management_provider.g.dart
+│   │   ├── history_provider.dart
+│   │   ├── history_provider.g.dart
+│   │   ├── repositories_provider.dart
+│   │   └── services_provider.dart
+│   ├── repositories/
+│   │   └── history_repository.dart
+│   ├── screens/
+│   │   ├── calculator_page.dart
+│   │   ├── history_page.dart
+│   │   ├── history_page.g.dart
+│   │   └── settings_page.dart
+│   ├── services/
+│   │   ├── calendar_service.dart
+│   │   ├── history_service.dart
+│   │   └── settings_service.dart
+│   ├── utils/
+│   │   ├── constants.dart
+│   │   ├── date_formatter.dart
+│   │   └── string_sanitizer.dart
+│   ├── widgets/
+│   │   ├── calculator/
+│   │   │   ├── action_buttons.dart
+│   │   │   ├── calculator_app_bar.dart
+│   │   │   ├── comment_display.dart
+│   │   │   └── display_fields.dart
+│   │   ├── history/
+│   │   │   └── history_filter_dialog.dart
+│   │   ├── settings/
+│   │   │   ├── history_settings_section.dart
+│   │   │   ├── integration_settings_section.dart
+│   │   │   ├── shortcut_settings_section.dart
+│   │   │   └── theme_settings_section.dart
+│   │   ├── comment_edit_dialog.dart
+│   │   └── keypad.dart
+│   ├── app.dart
+│   └── main.dart
+├── Privacy_Policy.md
+├── pubspec.yaml
+└── README.md
