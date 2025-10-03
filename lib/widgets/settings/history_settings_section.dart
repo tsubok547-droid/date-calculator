@@ -45,7 +45,9 @@ class _HistorySettingsSectionState extends ConsumerState<HistorySettingsSection>
       subtitle:
           Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       value: value,
+      // ignore: deprecated_member_use
       groupValue: groupValue,
+      // ignore: deprecated_member_use
       onChanged: onChanged,
       contentPadding: const EdgeInsets.symmetric(horizontal: 0),
       controlAffinity: ListTileControlAffinity.leading,
