@@ -13,6 +13,11 @@ date_calc/
 │   ├── build.gradle.kts
 │   └── gradle.properties
 ├── lib/
+│   ├── controllers/
+│   │   ├── calculator_page_controller.dart
+│   │   ├── calculator_page_controller.g.dart
+│   │   ├── history_page_controller.dart
+│   │   └── history_page_controller.g.dart
 │   ├── helpers/
 │   │   ├── show_app_snack_bar.dart
 │   │   └── show_calendar_prompt.dart
@@ -23,6 +28,8 @@ date_calc/
 │   ├── providers/
 │   │   ├── calculator_provider.dart
 │   │   ├── calculator_provider.g.dart
+│   │   ├── filtered_history_provider.dart
+│   │   ├── filtered_history_provider.g.dart
 │   │   ├── history_filter_provider.dart
 │   │   ├── history_filter_provider.g.dart
 │   │   ├── history_management_provider.dart

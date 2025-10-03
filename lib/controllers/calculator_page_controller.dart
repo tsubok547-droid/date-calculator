@@ -1,3 +1,5 @@
+// lib/controllers/calculator_page_controller.dart
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -14,6 +16,9 @@ import '../utils/constants.dart';
 import '../widgets/comment_edit_dialog.dart';
 
 part 'calculator_page_controller.g.dart';
+
+// インポート方法を定義するenum
+enum ImportAction { merge, replace }
 
 @riverpod
 class CalculatorPageController extends _$CalculatorPageController {
@@ -47,15 +52,13 @@ class CalculatorPageController extends _$CalculatorPageController {
   }
 
   /// Enterキーが押されたときの複雑な処理
-  ///
-  /// @return ハイライトすべきフィールド（UI側でアニメーションを再生するために使用）
   Future<ActiveField?> handleEnter(BuildContext context) async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
     final state = ref.read(calculatorNotifierProvider);
     ActiveField? fieldToHighlight;
 
-    // どのフィールドをハイライトするか決定
-    if (state.activeField == ActiveField.daysExpression && state.finalDate != null) {
+    if (state.activeField == ActiveField.daysExpression &&
+        state.finalDate != null) {
       fieldToHighlight = ActiveField.finalDate;
     } else if (state.activeField == ActiveField.finalDate) {
       fieldToHighlight = ActiveField.daysExpression;
@@ -63,10 +66,9 @@ class CalculatorPageController extends _$CalculatorPageController {
 
     if (state.finalDate == null) return null;
 
-    // 履歴保存
     await notifier.saveCurrentStateToHistory();
     if (!context.mounted) return null;
-    // カレンダー連携
+
     final settingsService = ref.read(settingsServiceProvider);
     if (settingsService.shouldAddEventToCalendar()) {
       await _promptAddEventToCalendar(context, state);
@@ -131,7 +133,8 @@ class CalculatorPageController extends _$CalculatorPageController {
   }
 
   /// 履歴ページへ遷移
-  Future<void> navigateToHistory(BuildContext context, {required bool isJapaneseCalendar}) async {
+  Future<void> navigateToHistory(BuildContext context,
+      {required bool isJapaneseCalendar}) async {
     final notifier = ref.read(calculatorNotifierProvider.notifier);
 
     final result = await Navigator.of(context).push(
@@ -170,42 +173,66 @@ class CalculatorPageController extends _$CalculatorPageController {
 
   /// 履歴をインポート
   Future<void> importHistory(BuildContext context) async {
-    final notifier = ref.read(historyManagementNotifierProvider.notifier);
-    final importedHistory = await notifier.getImportedHistoryData();
+    final mgmtNotifier = ref.read(historyManagementNotifierProvider.notifier);
+    final importedHistory = await mgmtNotifier.getImportedHistoryData();
 
     if (!context.mounted) return;
+
     if (importedHistory == null) {
-      showAppSnackBar(context, 'インポートがキャンセルされたか、ファイルの読み込みに失敗しました。');
+      showAppSnackBar(
+          context, 'インポートがキャンセルされたか、ファイルの読み込みに失敗しました。');
       return;
     }
 
-    final bool? confirmed = await showDialog<bool>(
+    final ImportAction? action = await showDialog<ImportAction>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('履歴のインポート'),
-        content: const Text('現在の履歴はすべて上書きされます。よろしいですか？'),
+        content: const Text(
+          'インポート方法を選択してください。\n\n'
+          '・マージ: 既存の履歴に新しいデータを追加します。\n'
+          '・上書き: 既存の履歴をすべて削除し、新しいデータに置き換えます。',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('キャンセル')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('インポート')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(ImportAction.merge),
+              child: const Text('マージ')),
+          TextButton(
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.of(context).pop(ImportAction.replace),
+            child: const Text('上書き'),
+          ),
         ],
       ),
     );
 
-    if (!(confirmed ?? false)) return;
+    if (!context.mounted) return;
 
-    await notifier.saveImportedHistory(importedHistory);
+    if (action == null) {
+      showAppSnackBar(context, 'インポートをキャンセルしました。');
+      return;
+    }
+
+    final message =
+        await mgmtNotifier.saveImportedHistory(importedHistory, action);
 
     if (context.mounted) {
-      showAppSnackBar(context, '${importedHistory.length}件の履歴をインポートしました。');
+      showAppSnackBar(context, message);
     }
   }
 
   /// プライベートメソッド：カレンダーへの追加を確認
-  Future<void> _promptAddEventToCalendar(BuildContext context, CalculationState state) async {
+  Future<void> _promptAddEventToCalendar(
+      BuildContext context, CalculationState state) async {
     final calendarService = CalendarService();
     if (state.finalDate == null) return;
 
-    final String title = (state.comment?.isNotEmpty ?? false) ? state.comment! : '計算結果の日付';
+    final String title =
+        (state.comment?.isNotEmpty ?? false) ? state.comment! : '計算結果の日付';
     final DateTime startTime = state.finalDate!;
 
     final bool? add = await showCalendarPrompt(

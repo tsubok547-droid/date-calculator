@@ -6,7 +6,7 @@ part of 'filtered_history_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$filteredHistoryHash() => r'a969b93ce4a16eb7be2b4fbb586d76de10e92382';
+String _$filteredHistoryHash() => r'2c208d2c5723e3e240cffea326937374fa099a49';
 
 /// フィルタリングされた履歴リストを提供するProvider
 ///

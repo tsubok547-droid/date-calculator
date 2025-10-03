@@ -29,7 +29,11 @@ class HistoryService {
       final String filePath = '${tempDir.path}/history_export_${DateTime.now().millisecondsSinceEpoch}.csv';
       final File file = await File(filePath).writeAsString(csv);
 
-      final result = await Share.shareXFiles([XFile(file.path)], subject: '計算履歴のエクスポート');
+      final params = ShareParams(
+        files: [XFile(file.path)],
+        subject: '計算履歴のエクスポート',
+      );
+      final result = await SharePlus.instance.share(params);
 
       return result.status == ShareResultStatus.success;
     } catch (e) {

@@ -138,11 +138,7 @@ class CalculatorNotifier extends _$CalculatorNotifier {
   }
 
   Future<void> saveCurrentStateToHistory() async {
-    // ▼▼▼ ここを修正 ▼▼▼
-    // .future をawaitすることで、FutureProviderから中身のインスタンスを正しく取り出す
-    final repository = await ref.read(historyRepositoryProvider.future);
-    // repositoryの正しいメソッド`.add()`を呼び出す
+    final repository = ref.read(historyRepositoryProvider);
     await repository.add(state);
-    // ▲▲▲ 修正はここまで ▲▲▲
   }
 }
